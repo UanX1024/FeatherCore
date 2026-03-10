@@ -13,6 +13,7 @@ test = false
 bench = false
 
 [dependencies]
+feathercore-common = { path = "../common", features = ["async", "mm", "sync", "driver", "fs"] }
 feathercore-arch-arm = { path = "../arch/arm", optional = true }
 feathercore-arch-riscv = { path = "../arch/riscv", optional = true }
 

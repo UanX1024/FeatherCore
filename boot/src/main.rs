@@ -1,19 +1,30 @@
 //! FeatherCore Bootloader
 //! 
 //! This is the bootloader binary that initializes hardware and loads the kernel.
+//! Uses common library for async operations and utilities.
 
 #![no_std]
 #![no_main]
 #![feature(lang_items)]
 #![feature(panic_info_message)]
+#![feature(async_fn_in_trait)]
 
 use core::panic::PanicInfo;
+
+// Use common library
+use feathercore_common::{AsyncExecutor, delay, yield_now, Result};
 
 /// Bootloader entry point
 #[no_mangle]
 pub extern "C" fn boot_main() -> ! {
     // Initialize minimal hardware
     init_hardware();
+    
+    // Run bootloader tasks using async executor
+    if let Err(e) = run_bootloader_tasks() {
+        // Handle bootloader error
+        boot_panic(&format!("Bootloader error: {:?}", e));
+    }
     
     // Load kernel from storage
     load_kernel();
@@ -22,6 +33,59 @@ pub extern "C" fn boot_main() -> ! {
     jump_to_kernel();
     
     // Should never reach here
+    loop {}
+}
+
+/// Run bootloader tasks using async executor
+fn run_bootloader_tasks() -> Result<()> {
+    let mut executor = AsyncExecutor::new();
+    
+    // Spawn bootloader tasks
+    executor.spawn(async {
+        // Initialize storage
+        init_storage().await?;
+        
+        // Verify kernel integrity
+        verify_kernel().await?;
+        
+        // Prepare kernel environment
+        prepare_kernel_env().await?;
+        
+        Ok(())
+    })?;
+    
+    // Run all tasks
+    executor.run()
+}
+
+/// Async storage initialization
+async fn init_storage() -> Result<()> {
+    // Simulate storage initialization with delay
+    delay(100).await;
+    Ok(())
+}
+
+/// Async kernel verification
+async fn verify_kernel() -> Result<()> {
+    // Simulate kernel verification
+    for _ in 0..5 {
+        delay(20).await;
+        yield_now().await;
+    }
+    Ok(())
+}
+
+/// Async kernel environment preparation
+async fn prepare_kernel_env() -> Result<()> {
+    // Simulate environment preparation
+    delay(50).await;
+    Ok(())
+}
+
+/// Bootloader panic with message
+fn boot_panic(msg: &str) -> ! {
+    // In a real implementation, this would log the message
+    // For now, just loop forever
     loop {}
 }
 

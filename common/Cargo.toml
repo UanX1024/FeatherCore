@@ -1,0 +1,42 @@
+[package]
+name = "feathercore-common"
+version = "0.1.0"
+edition = "2021"
+authors = ["FeatherCore Contributors"]
+license = "MIT OR Apache-2.0"
+
+# This is a no_std library
+[lib]
+name = "common"
+path = "src/lib.rs"
+
+[features]
+default = []
+
+# Architecture features
+arm = ["feathercore-arch-arm"]
+riscv = ["feathercore-arch-riscv"]
+
+# Optional features
+async = []      # Enable async runtime
+mm = []         # Enable memory management
+sync = []       # Enable synchronization primitives
+driver = []     # Enable driver framework
+fs = []         # Enable filesystem framework
+
+[dependencies]
+# Architecture dependencies (optional)
+feathercore-arch-arm = { path = "../arch/arm", optional = true }
+feathercore-arch-riscv = { path = "../arch/riscv", optional = true }
+
+# Core dependencies for no_std async
+# Note: We'll implement our own minimal async runtime
+# to avoid external dependencies
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
