@@ -1,12 +1,10 @@
 use crate::task::{Task, TaskState};
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 use crate::sync::Mutex;
 use crate::info;
 use core::pin::Pin;
 use core::future::Future;
 use core::task::{Context, Poll};
-use core::sync::atomic::Ordering;
 use crate::future;
 use super::future::create_waker;
 
@@ -14,8 +12,8 @@ static SCHEDULER: Mutex<Scheduler> = Mutex::new(Scheduler::new());
 
 /// 线程结构，用于管理同一线程内的任务
 pub struct Thread {
-    id: usize,
-    name: &'static str,
+    _id: usize,
+    _name: &'static str,
     current_task: Option<usize>, // 当前线程正在执行的任务
     ready_queue: Vec<usize>,     // 线程内的就绪任务队列
 }
@@ -25,7 +23,7 @@ pub struct Scheduler {
     tasks: Vec<Task>,
     threads: Vec<Thread>,
     current_thread: Option<usize>,
-    thread_count: usize,
+    _thread_count: usize,
 }
 
 impl Scheduler {
@@ -33,8 +31,8 @@ impl Scheduler {
     pub fn create_thread(&mut self, name: &'static str) -> usize {
         let thread_id = self.threads.len();
         self.threads.push(Thread {
-            id: thread_id,
-            name,
+            _id: thread_id,
+            _name: name,
             current_task: None,
             ready_queue: Vec::new(),
         });
@@ -47,7 +45,7 @@ impl Scheduler {
             tasks: Vec::new(),
             threads: Vec::new(),
             current_thread: None,
-            thread_count: 0,
+            _thread_count: 0,
         }
     }
     

@@ -5,8 +5,8 @@
 
 #![cfg(feature = "mm")]
 
-use core::alloc::{GlobalAlloc, Layout};
-use core::ptr::{self, NonNull};
+use core::alloc::Layout;
+use core::ptr::NonNull;
 
 use crate::Error;
 use crate::Result;
@@ -39,10 +39,9 @@ impl BumpAllocator {
 
         self.current = new_current;
 
-        // SAFETY: aligned_addr is aligned and within bounds
-        unsafe {
-            Ok(NonNull::new_unchecked(aligned_addr as *mut u8))
-        }
+        // Use safe NonNull::new instead of unsafe new_unchecked
+        NonNull::new(aligned_addr as *mut u8)
+            .ok_or(Error::OutOfMemory)
     }
 
     /// Reset the allocator to its initial state
@@ -66,31 +65,7 @@ impl BumpAllocator {
     }
 }
 
-unsafe impl GlobalAlloc for BumpAllocator {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        // Note: This is not thread-safe
-        // For bootloader use, this is acceptable
-        let mut allocator = BumpAllocator {
-            start: self.start,
-            end: self.end,
-            current: self.current,
-        };
-        
-        match allocator.allocate(layout) {
-            Ok(ptr) => {
-                // Update current pointer
-                let current = allocator.current;
-                core::ptr::write_volatile(&self.current as *const _ as *mut usize, current);
-                ptr.as_ptr()
-            }
-            Err(_) => ptr::null_mut(),
-        }
-    }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        // Bump allocator doesn't support deallocation
-    }
-}
 
 /// Memory region descriptor
 #[derive(Debug, Clone, Copy)]

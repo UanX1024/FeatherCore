@@ -364,11 +364,102 @@ PROVIDE(_sidata = LOADADDR(.data));
     }
 }
 
+fn get_arch_features(board_name: &str) -> Vec<String> {
+    let config_path = find_board_config(board_name);
+    
+    match config_path {
+        Some(path) => {
+            if let Ok(content) = fs::read_to_string(&path) {
+                let config = parse_toml_config(&content);
+                
+                // 获取CPU核心信息
+                let default_core = "cortex-m3".to_string();
+                let core = config.get("cpu.core").unwrap_or(&default_core);
+                
+                // 根据核心信息确定架构特性
+                match core.as_str() {
+                    "cortex-m0" | "cortex-m0plus" => vec!["armv6-m".to_string()],
+                    "cortex-m3" => vec!["armv7-m".to_string()],
+                    "cortex-m4" | "cortex-m7" => vec!["armv7-em".to_string()],
+                    "cortex-m23" => vec!["armv8-m-base".to_string()],
+                    "cortex-m33" | "cortex-m55" | "cortex-m85" => vec!["armv8-m-main".to_string()],
+                    "cortex-a5" | "cortex-a7" | "cortex-a8" | "cortex-a9" | "cortex-a15" => vec!["armv7-a".to_string()],
+                    "cortex-a53" | "cortex-a55" | "cortex-a72" | "cortex-a73" | "cortex-a75" | "cortex-a76" | "cortex-a77" | "cortex-a78" => vec!["armv8-a".to_string()],
+                    "cortex-a710" | "cortex-a715" | "cortex-a720" | "cortex-a520" => vec!["armv9-a".to_string()],
+                    _ => vec!["armv7-m".to_string()], // 默认值
+                }
+            } else {
+                vec!["armv7-m".to_string()] // 默认值
+            }
+        }
+        None => {
+            vec!["armv7-m".to_string()] // 默认值
+        }
+    }
+}
+
+fn get_target_arch(board_name: &str) -> String {
+    let config_path = find_board_config(board_name);
+    
+    match config_path {
+        Some(path) => {
+            if let Ok(content) = fs::read_to_string(&path) {
+                let config = parse_toml_config(&content);
+                
+                // 获取CPU核心信息
+                let default_core = "cortex-m3".to_string();
+                let default_fpu = "false".to_string();
+                let core = config.get("cpu.core").unwrap_or(&default_core);
+                let fpu = config.get("cpu.fpu").unwrap_or(&default_fpu) == "true";
+                
+                // 根据核心信息和FPU支持确定目标架构
+                match core.as_str() {
+                    "cortex-m0" | "cortex-m0plus" => "thumbv6m-none-eabi".to_string(),
+                    "cortex-m3" => "thumbv7m-none-eabi".to_string(),
+                    "cortex-m4" => if fpu { "thumbv7em-none-eabihf".to_string() } else { "thumbv7em-none-eabi".to_string() },
+                    "cortex-m7" => if fpu { "thumbv7em-none-eabihf".to_string() } else { "thumbv7em-none-eabi".to_string() },
+                    "cortex-m23" => "thumbv8m.base-none-eabi".to_string(),
+                    "cortex-m33" => if fpu { "thumbv8m.main-none-eabihf".to_string() } else { "thumbv8m.main-none-eabi".to_string() },
+                    "cortex-m55" => if fpu { "thumbv8m.main-none-eabihf".to_string() } else { "thumbv8m.main-none-eabi".to_string() },
+                    "cortex-m85" => if fpu { "thumbv8m.main-none-eabihf".to_string() } else { "thumbv8m.main-none-eabi".to_string() },
+                    "cortex-a5" => "armv7a-none-eabihf".to_string(),
+                    "cortex-a7" => "armv7a-none-eabihf".to_string(),
+                    "cortex-a8" => "armv7a-none-eabihf".to_string(),
+                    "cortex-a9" => "armv7a-none-eabihf".to_string(),
+                    "cortex-a15" => "armv7a-none-eabihf".to_string(),
+                    "cortex-a53" => "aarch64-none-elf".to_string(),
+                    "cortex-a55" => "aarch64-none-elf".to_string(),
+                    "cortex-a72" => "aarch64-none-elf".to_string(),
+                    "cortex-a73" => "aarch64-none-elf".to_string(),
+                    "cortex-a75" => "aarch64-none-elf".to_string(),
+                    "cortex-a76" => "aarch64-none-elf".to_string(),
+                    "cortex-a77" => "aarch64-none-elf".to_string(),
+                    "cortex-a78" => "aarch64-none-elf".to_string(),
+                    _ => "thumbv7m-none-eabi".to_string(), // 默认值
+                }
+            } else {
+                "thumbv7m-none-eabi".to_string() // 默认值
+            }
+        }
+        None => {
+            "thumbv7m-none-eabi".to_string() // 默认值
+        }
+    }
+}
+
 fn build(board_name: &str, target: &str) {
     println!("Building for board {}...", board_name);
     
     // 首先生成配置
     generate_config(board_name);
+    
+    // 确定目标架构
+    let target_arch = get_target_arch(board_name);
+    println!("Using target architecture: {}", target_arch);
+    
+    // 确定架构特性
+    let arch_features = get_arch_features(board_name);
+    println!("Using architecture features: {:?}", arch_features);
     
     // 确定构建目标
     let build_target = if target == "boot" || target == "Boot" || target == "BOOT" {
@@ -383,8 +474,20 @@ fn build(board_name: &str, target: &str) {
     if build_target == "all" || build_target == "boot" {
         println!("Building bootloader...");
         
+        // 构建命令参数
+        let mut args = Vec::new();
+        args.push("build".to_string());
+        args.push("--target".to_string());
+        args.push(target_arch.clone());
+        for feature in &arch_features {
+            args.push(format!("--features={}", feature));
+        }
+        
+        // 转换为 &str 切片
+        let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        
         let status = Command::new("cargo")
-            .args(&["build", "--target", "thumbv7m-none-eabi"])
+            .args(&args_ref)
             .current_dir("boot")
             .status();
         
@@ -399,8 +502,20 @@ fn build(board_name: &str, target: &str) {
     if build_target == "all" || build_target == "kernel" {
         println!("Building kernel...");
         
+        // 构建命令参数
+        let mut args = Vec::new();
+        args.push("build".to_string());
+        args.push("--target".to_string());
+        args.push(target_arch.clone());
+        for feature in &arch_features {
+            args.push(format!("--features={}", feature));
+        }
+        
+        // 转换为 &str 切片
+        let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        
         let status = Command::new("cargo")
-            .args(&["build", "--target", "thumbv7m-none-eabi"])
+            .args(&args_ref)
             .current_dir("kernel")
             .status();
         

@@ -4,8 +4,6 @@
 
 #![no_std]
 #![no_main]
-#![feature(lang_items)]
-#![feature(panic_info_message)]
 
 use core::panic::PanicInfo;
 
@@ -65,15 +63,13 @@ fn start_scheduler() {
 
 /// Panic handler for kernel
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
+fn panic(_info: &PanicInfo) -> ! {
     // Kernel panic handler
     // Should log panic information and halt or reboot
     loop {}
 }
 
-/// Language items required for no_std
-#[lang = "eh_personality"]
-extern "C" fn eh_personality() {}
+
 
 /// Entry point wrapper
 #[no_mangle]
@@ -83,4 +79,5 @@ pub extern "C" fn _start() -> ! {
 
 /// Stack top for kernel
 #[link_section = ".stack_top"]
+#[allow(dead_code)]
 static STACK_TOP: [u8; 8192] = [0; 8192];

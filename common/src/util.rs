@@ -34,7 +34,7 @@ impl<T> SpinLock<T> {
     }
 
     /// Lock the spinlock and return a guard
-    pub fn lock(&self) -> SpinLockGuard<T> {
+    pub fn lock(&mut self) -> SpinLockGuard<'_, T> {
         // In a real implementation, this would disable interrupts
         // or use atomic operations
         SpinLockGuard { lock: self }
@@ -43,7 +43,7 @@ impl<T> SpinLock<T> {
 
 /// Spinlock guard
 pub struct SpinLockGuard<'a, T> {
-    lock: &'a SpinLock<T>,
+    lock: &'a mut SpinLock<T>,
 }
 
 impl<'a, T> core::ops::Deref for SpinLockGuard<'a, T> {
@@ -56,8 +56,7 @@ impl<'a, T> core::ops::Deref for SpinLockGuard<'a, T> {
 
 impl<'a, T> core::ops::DerefMut for SpinLockGuard<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // SAFETY: We hold the lock
-        unsafe { &mut *(&self.lock.data as *const T as *mut T) }
+        &mut self.lock.data
     }
 }
 

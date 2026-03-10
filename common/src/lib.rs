@@ -5,16 +5,14 @@
 //! libraries except architecture-specific code.
 
 #![no_std]
-#![cfg_attr(feature = "async", feature(async_fn_in_trait))]
-#![cfg_attr(feature = "async", allow(incomplete_features))]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
 // Re-export architecture modules if features are enabled
-#[cfg(feature = "arm")]
+#[cfg(all(feature = "arm", not(feature = "riscv")))]
 pub use feathercore_arch_arm as arch;
 
-#[cfg(feature = "riscv")]
+#[cfg(all(feature = "riscv", not(feature = "arm")))]
 pub use feathercore_arch_riscv as arch;
 
 // Core modules
@@ -24,6 +22,9 @@ pub mod util;
 // Optional modules (enabled by features)
 #[cfg(feature = "async")]
 pub mod async_rt;
+
+#[cfg(feature = "async")]
+pub use async_rt::{AsyncExecutor, delay, yield_now};
 
 #[cfg(feature = "mm")]
 pub mod mm;

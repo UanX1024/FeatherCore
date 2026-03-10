@@ -1,6 +1,6 @@
 //! Error handling utilities
 
-use crate::Error;
+use crate::{Error, Result};
 
 /// Extension trait for Result types
 pub trait ResultExt<T> {

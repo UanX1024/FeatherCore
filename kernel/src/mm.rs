@@ -118,6 +118,9 @@ impl Allocator {
     }
 }
 
+// Use a small static buffer as initial heap
+static mut HEAP_MEMORY: [u8; 4096] = [0; 4096];
+
 static ALLOCATOR: Mutex<Allocator> = Mutex::new(Allocator::new());
 
 /// Initialize the memory manager
@@ -125,12 +128,9 @@ pub fn init() {
     // Initialize the allocator with a dummy memory region for now
     // In a real implementation, this would use actual RAM regions from memory.x
     unsafe {
-        // Use a small static buffer as initial heap
-        static mut HEAP_MEMORY: [u8; 4096] = [0; 4096];
-        
-        // Get mutable pointers for the static buffer
-        let heap_ptr = HEAP_MEMORY.as_mut_ptr();
-        let heap_size = HEAP_MEMORY.len();
+        // Get mutable slice for the static buffer
+        let heap_ptr = &raw mut HEAP_MEMORY as *mut u8;
+        let heap_size = 4096; // Fixed size of HEAP_MEMORY
         
         // Initialize the allocator
         ALLOCATOR.lock().init(heap_ptr, heap_size);

@@ -15,21 +15,28 @@ bench = false
 
 [dependencies]
 feathercore-common = { path = "../common", features = ["async", "mm", "sync"] }
-feathercore-arch-arm = { path = "../arch/arm", optional = true }
-feathercore-arch-riscv = { path = "../arch/riscv", optional = true }
 
 [features]
 default = []
 
-# Architecture features
-armv7-m = ["feathercore-arch-arm/armv7-m"]
-armv8-m = ["feathercore-arch-arm/armv8-m"]
-riscv = ["feathercore-arch-riscv/riscv"]
-armv7-a = ["feathercore-arch-arm/armv7-a"]
+# Cortex-M architectures
+armv6-m = ["feathercore-common/armv6-m"]
+armv7-m = ["feathercore-common/armv7-m"]
+armv7-em = ["feathercore-common/armv7-em"]
+armv8-m-base = ["feathercore-common/armv8-m-base"]
+armv8-m-main = ["feathercore-common/armv8-m-main"]
+
+# Cortex-A architectures
+armv7-a = ["feathercore-common/armv7-a"]
+armv8-a = ["feathercore-common/armv8-a"]
+armv9-a = ["feathercore-common/armv9-a"]
+
+# RISC-V architecture
+riscv = ["feathercore-common/riscv"]
 
 # Board-specific features
-stm32f429i-disc = ["armv7-m"]
-stm32n6570-dk = ["armv8-m"]
+stm32f429i-disc = ["armv7-em"]
+stm32n6570-dk = ["armv8-m-main"]
 mimxrt1170-evkb = ["armv7-m"]
 
 [profile.dev]
@@ -39,3 +46,23 @@ opt-level = 1
 opt-level = "s"  # Optimize for size
 lto = true
 codegen-units = 1
+
+[target.thumbv7m-none-eabi]
+rustflags = [
+    "-C", "link-arg=-Tlink.x"
+]
+
+[target.thumbv8m.base-none-eabi]
+rustflags = [
+    "-C", "link-arg=-Tlink.x"
+]
+
+[target.riscv32imac-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=-Tlink.x"
+]
+
+[target.riscv64imac-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=-Tlink.x"
+]

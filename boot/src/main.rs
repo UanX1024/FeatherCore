@@ -5,14 +5,22 @@
 
 #![no_std]
 #![no_main]
-#![feature(lang_items)]
-#![feature(panic_info_message)]
-#![feature(async_fn_in_trait)]
 
 use core::panic::PanicInfo;
+use core::arch::asm;
 
 // Use common library
 use feathercore_common::{AsyncExecutor, delay, yield_now, Result};
+
+// Include architecture-specific startup code
+#[cfg(target_arch = "arm")]
+mod startup_cortex_m;
+
+#[cfg(target_arch = "riscv32")]
+mod startup_riscv;
+
+#[cfg(target_arch = "riscv64")]
+mod startup_riscv;
 
 /// Bootloader entry point
 #[no_mangle]
@@ -21,9 +29,9 @@ pub extern "C" fn boot_main() -> ! {
     init_hardware();
     
     // Run bootloader tasks using async executor
-    if let Err(e) = run_bootloader_tasks() {
+    if let Err(_e) = run_bootloader_tasks() {
         // Handle bootloader error
-        boot_panic(&format!("Bootloader error: {:?}", e));
+        boot_panic("Bootloader error");
     }
     
     // Load kernel from storage
@@ -83,7 +91,7 @@ async fn prepare_kernel_env() -> Result<()> {
 }
 
 /// Bootloader panic with message
-fn boot_panic(msg: &str) -> ! {
+fn boot_panic(_msg: &str) -> ! {
     // In a real implementation, this would log the message
     // For now, just loop forever
     loop {}
@@ -103,28 +111,33 @@ fn load_kernel() {
 
 /// Jump to kernel entry point
 fn jump_to_kernel() {
-    // TODO: Set up kernel environment and jump to kernel entry
-    // This includes setting up stack pointer, vector table, etc.
+    unsafe {
+        // Kernel entry point address (adjust based on your kernel location)
+        let kernel_entry: unsafe extern "C" fn() -> ! = core::mem::transmute(0x08010000 as *const ());
+        
+        // Disable interrupts
+        #[cfg(target_arch = "arm")]
+        asm!("cpsid i");
+        
+        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
+        asm!("csrc mie, 0x888"); // Disable all interrupts
+        
+        // Jump to kernel
+        kernel_entry();
+    }
 }
 
 /// Panic handler for bootloader
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
+fn panic(_info: &PanicInfo) -> ! {
     // Simple panic handler for bootloader
     // In a real implementation, this would log to serial or blink LEDs
     loop {}
 }
 
-/// Language items required for no_std
-#[lang = "eh_personality"]
-extern "C" fn eh_personality() {}
 
-/// Entry point wrapper
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
-    boot_main()
-}
 
 /// Stack top for bootloader
 #[link_section = ".stack_top"]
-static STACK_TOP: [u8; 4096] = [0; 4096];
+#[used]
+static STACK_TOP: u32 = 0x20000000 + 0x4000; // 16KB stack

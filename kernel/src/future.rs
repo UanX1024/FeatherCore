@@ -105,7 +105,7 @@ static WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
     |data| {
         // Drop the waker
         unsafe {
-            Box::from_raw(data as *mut WakerData);
+            let _ = Box::from_raw(data as *mut WakerData);
         }
     },
 );

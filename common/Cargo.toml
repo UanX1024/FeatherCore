@@ -7,8 +7,13 @@ license = "MIT OR Apache-2.0"
 
 # This is a no_std library
 [lib]
-name = "common"
+name = "feathercore_common"
 path = "src/lib.rs"
+
+[dependencies]
+# Architecture dependencies (optional)
+feathercore-arch-arm = { path = "./arch/arm", optional = true }
+feathercore-arch-riscv = { path = "./arch/riscv", optional = true }
 
 [features]
 default = []
@@ -17,21 +22,22 @@ default = []
 arm = ["feathercore-arch-arm"]
 riscv = ["feathercore-arch-riscv"]
 
+# ARM architecture variants
+armv6-m = ["arm", "feathercore-arch-arm/armv6-m"]
+armv7-m = ["arm", "feathercore-arch-arm/armv7-m"]
+armv7-em = ["arm", "feathercore-arch-arm/armv7-em"]
+armv8-m-base = ["arm", "feathercore-arch-arm/armv8-m-base"]
+armv8-m-main = ["arm", "feathercore-arch-arm/armv8-m-main"]
+armv7-a = ["arm", "feathercore-arch-arm/armv7-a"]
+armv8-a = ["arm", "feathercore-arch-arm/armv8-a"]
+armv9-a = ["arm", "feathercore-arch-arm/armv9-a"]
+
 # Optional features
 async = []      # Enable async runtime
 mm = []         # Enable memory management
 sync = []       # Enable synchronization primitives
 driver = []     # Enable driver framework
 fs = []         # Enable filesystem framework
-
-[dependencies]
-# Architecture dependencies (optional)
-feathercore-arch-arm = { path = "../arch/arm", optional = true }
-feathercore-arch-riscv = { path = "../arch/riscv", optional = true }
-
-# Core dependencies for no_std async
-# Note: We'll implement our own minimal async runtime
-# to avoid external dependencies
 
 [profile.dev]
 opt-level = 1

@@ -13,8 +13,8 @@ path = "src/bin/feathercore-build.rs"
 
 [workspace]
 members = [
-    "arch/arm",
-    "arch/riscv",
+    "common/arch/arm",
+    "common/arch/riscv",
     "common",
     "boot",
     "kernel",

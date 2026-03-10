@@ -33,6 +33,7 @@ rustflags = [
   "-C", "linker=rust-lld",
   "-C", "relocation-model=static",
   "-C", "incremental=false",
+  "-C", "link-arg=-T/home/uan/develop/FeatherCore/FeatherCore/boot/link.x",
 ]
 
 [target.'cfg(all(target_arch = "riscv32", target_os = "none"))']
@@ -40,6 +41,7 @@ rustflags = [
   "-C", "linker=rust-lld",
   "-C", "relocation-model=static",
   "-C", "incremental=false",
+  "-C", "link-arg=-T/home/uan/develop/FeatherCore/FeatherCore/boot/link.x",
 ]
 
 [target.'cfg(all(target_arch = "riscv64", target_os = "none"))']
@@ -47,6 +49,7 @@ rustflags = [
   "-C", "linker=rust-lld",
   "-C", "relocation-model=static",
   "-C", "incremental=false",
+  "-C", "link-arg=-T/home/uan/develop/FeatherCore/FeatherCore/boot/link.x",
 ]
 
 # Build configuration

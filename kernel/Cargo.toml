@@ -14,19 +14,28 @@ bench = false
 
 [dependencies]
 feathercore-common = { path = "../common", features = ["async", "mm", "sync", "driver", "fs"] }
-feathercore-arch-arm = { path = "../arch/arm", optional = true }
-feathercore-arch-riscv = { path = "../arch/riscv", optional = true }
+feathercore-arch-arm = { path = "../common/arch/arm", optional = true }
+feathercore-arch-riscv = { path = "../common/arch/riscv", optional = true }
 
 [features]
 default = []
 
-# Architecture features
+# Cortex-M architectures
+armv6-m = ["feathercore-arch-arm/armv6-m"]
 armv7-m = ["feathercore-arch-arm/armv7-m"]
-armv8-m = ["feathercore-arch-arm/armv8-m"]
-riscv = ["feathercore-arch-riscv/riscv"]
+armv7-em = ["feathercore-arch-arm/armv7-em"]
+armv8-m-base = ["feathercore-arch-arm/armv8-m-base"]
+armv8-m-main = ["feathercore-arch-arm/armv8-m-main"]
+
+# Cortex-A architectures
 armv7-a = ["feathercore-arch-arm/armv7-a"]
+armv8-a = ["feathercore-arch-arm/armv8-a"]
+armv9-a = ["feathercore-arch-arm/armv9-a"]
+
+# RISC-V architecture
+riscv = ["feathercore-arch-riscv/riscv"]
 
 # Board-specific features
-stm32f429i-disc = ["armv7-m"]
-stm32n6570-dk = ["armv8-m"]
+stm32f429i-disc = ["armv7-em"]
+stm32n6570-dk = ["armv8-m-main"]
 mimxrt1170-evkb = ["armv7-m"]

@@ -145,14 +145,14 @@ impl Semaphore {
 
 /// Conditional variable implementation
 pub struct Condvar {
-    mutex: Mutex<()>,
+    _mutex: Mutex<()>,
 }
 
 impl Condvar {
     /// Create a new conditional variable
     pub const fn new() -> Self {
         Condvar {
-            mutex: Mutex::new(()),
+            _mutex: Mutex::new(()),
         }
     }
     

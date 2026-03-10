@@ -2,11 +2,7 @@
 #![no_main]
 #![feature(alloc_error_handler)]
 
-#[macro_use]
 extern crate alloc;
-
-use alloc::vec::Vec;
-use alloc::boxed::Box;
 
 pub mod sched;
 pub mod task;

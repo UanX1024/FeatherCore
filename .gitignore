@@ -1,40 +1,31 @@
-# Rust build outputs
-/target/
-**/*.rs.bk
-Cargo.lock
+# Build artifacts
+target/
+*.o
+*.a
+*.so
+*.exe
+*.dll
 
-# Build tool binaries
-/feathercore-build
-/debug_parse
-/test_parse
-/test_underscore
-
-# Generated linker scripts
+# Generated files
 boot/link.x
 kernel/link.x
 
-# IDE and editor files
+# Process files
+false/
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Cargo files
+Cargo.lock
 
-# Temporary files
-*.tmp
-*.temp
-
-# Log files
-*.log
-
-# Build scripts (optional, can be included if needed)
-# build_example.sh
+# Build tool
+feathercore-build
