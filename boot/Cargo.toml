@@ -1,0 +1,40 @@
+[package]
+name = "feathercore-boot"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT OR Apache-2.0"
+description = "FeatherCore Bootloader"
+publish = false
+
+[[bin]]
+name = "feathercore-boot"
+path = "src/main.rs"
+test = false
+bench = false
+
+[dependencies]
+feathercore-arch-arm = { path = "../arch/arm", optional = true }
+feathercore-arch-riscv = { path = "../arch/riscv", optional = true }
+
+[features]
+default = []
+
+# Architecture features
+armv7-m = ["feathercore-arch-arm/armv7-m"]
+armv8-m = ["feathercore-arch-arm/armv8-m"]
+riscv = ["feathercore-arch-riscv/riscv"]
+armv7-a = ["feathercore-arch-arm/armv7-a"]
+
+# Board-specific features
+stm32f429i-disc = ["armv7-m"]
+stm32n6570-dk = ["armv8-m"]
+mimxrt1170-evkb = ["armv7-m"]
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = "s"  # Optimize for size
+lto = true
+codegen-units = 1

@@ -1,0 +1,40 @@
+[package]
+name = "feathercore"
+description = "FeatherCore Build System and RTOS Framework"
+version = "0.1.0"
+authors = ["Your Name <your.email@example.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+build = "build_simple.rs"  # 临时保留，后续替换
+
+[[bin]]
+name = "feathercore-build"
+path = "src/bin/feathercore-build.rs"
+
+[workspace]
+members = [
+    "boot",
+    "kernel",
+]
+
+[dependencies]
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[features]
+default = []
+
+# Build targets
+boot = []
+kernel = []
+
+# Board-specific features
+stm32f429i-disc = []
+stm32n6570-dk = []
+mimxrt1170-evkb = []

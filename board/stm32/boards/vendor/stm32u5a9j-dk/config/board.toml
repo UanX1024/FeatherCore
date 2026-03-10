@@ -1,0 +1,47 @@
+# STM32U5A9J-DK Board Configuration
+
+[board]
+name = "stm32u5a9j-dk"
+vendor = "st"
+family = "stm32u5"
+mcu = "stm32u5a9j"
+
+[cpu]
+core = "cortex-m33"
+frequency = 160000000
+fpu = true
+
+[memory]
+flash_size = 2097152
+sram_size = 786432
+dtcm_size = 128000
+sram1_size = 512000
+sram2_size = 128000
+
+[bootloader]
+boot_base_address = 0x08000000
+boot_size = 0x10000  # 64KB
+boot_stack_size = 0x2000   # 8KB
+
+[kernel]
+boot_base_address = 0x08010000
+boot_size = 0x1F0000  # 1.9375MB
+boot_stack_size = 0x4000   # 16KB
+heap_size = 0x20000   # 128KB
+
+[pinout]
+# LED pins
+led1 = "PD13"
+
+# UART pins
+dbg_uart_tx = "PA2"
+dbg_uart_rx = "PA3"
+
+# SPI pins
+spi1_sck = "PA5"
+spi1_miso = "PA6"
+spi1_mosi = "PA7"
+
+# I2C pins
+i2c1_scl = "PB8"
+i2c1_sda = "PB9"

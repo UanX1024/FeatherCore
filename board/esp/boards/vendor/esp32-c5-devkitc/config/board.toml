@@ -1,0 +1,45 @@
+# ESP32-C5-DevKitC Board Configuration
+
+[board]
+name = "esp32-c5-devkitc"
+vendor = "espressif"
+family = "esp32-c5"
+mcu = "esp32-c5"
+
+[cpu]
+core = "riscv32"
+frequency = 160000000
+fpu = false
+
+[memory]
+flash_size = 4194304
+sram_size = 400000
+psram_size = 0
+
+[bootloader]
+boot_base_address = 0x42000000
+boot_size = 0x10000  # 64KB
+boot_stack_size = 0x2000   # 8KB
+
+[kernel]
+boot_base_address = 0x42010000
+boot_size = 0x3F0000  # 3.9375MB
+boot_stack_size = 0x4000   # 16KB
+heap_size = 0x20000   # 128KB
+
+[pinout]
+# LED pins
+led1 = "GPIO8"
+
+# UART pins
+dbg_uart_tx = "GPIO21"
+dbg_uart_rx = "GPIO20"
+
+# SPI pins
+spi1_sck = "GPIO6"
+spi1_miso = "GPIO7"
+spi1_mosi = "GPIO8"
+
+# I2C pins
+i2c1_scl = "GPIO10"
+i2c1_sda = "GPIO11"

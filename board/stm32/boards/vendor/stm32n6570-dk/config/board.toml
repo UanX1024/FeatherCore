@@ -1,0 +1,127 @@
+# STM32N6570-DK Board Configuration
+# High-performance Arm Cortex-M55 with Helium and Ethos-U55 NPU
+
+[board]
+name = "stm32n6570-dk"
+vendor = "st"
+family = "stm32n6"
+mcu = "stm32n6570"
+
+[cpu]
+core = "cortex-m55"
+frequency = 400000000
+fpu = true
+fpu_dp = true
+helium = true
+mve = true
+cores = 1
+
+[memory]
+flash_size = 2097152
+sram_size = 1048576
+extmem_size = 0x1000000
+extmem_base = 0x70000000
+
+[cache]
+icache = true
+dcache = true
+
+[npu]
+ethos_u55 = true
+macs_per_clock = 512
+
+[gpu]
+enabled = true
+
+[dma2d]
+enabled = true
+
+[jpeg]
+enabled = true
+
+[bootloader]
+boot_base_address = 0x08000000
+boot_size = 0x10000  # 64KB
+boot_stack_size = 0x1000   # 4KB
+
+[kernel]
+boot_base_address = 0x08010000
+boot_size = 0x7F0000  # 7.9375MB
+boot_stack_size = 0x4000   # 16KB
+heap_size = 0x20000   # 128KB
+
+[security]
+tfm = true
+crypto_aes = true
+crypto_sha = true
+hash = true
+
+[serial]
+console_uart = 1
+baudrate = 115200
+num_uart = 4
+
+[gpio]
+num = 112
+
+[i2c]
+num = 4
+
+[spi]
+num = 4
+
+[can]
+num = 2
+fd = true
+
+[usb]
+otg = true
+device = true
+hs = true
+
+[sdmmc]
+sd = true
+
+[octospi]
+enabled = true
+
+[hyperbus]
+enabled = true
+
+[dma]
+num = 2
+
+[adc]
+num = 2
+
+[dac]
+num = 2
+
+[crc]
+hw = true
+
+[rng]
+hw = true
+
+[watchdog]
+iwdg = true
+
+[debug]
+sw = true
+
+[pinout]
+# LED pins (to be defined based on board schematic)
+# led1 = "PD13"
+
+# UART pins (to be defined based on board schematic)
+# dbg_uart_tx = "PA2"
+# dbg_uart_rx = "PA3"
+
+# SPI pins (to be defined based on board schematic)
+# spi1_sck = "PA5"
+# spi1_miso = "PA6"
+# spi1_mosi = "PA7"
+
+# I2C pins (to be defined based on board schematic)
+# i2c1_scl = "PB8"
+# i2c1_sda = "PB9"

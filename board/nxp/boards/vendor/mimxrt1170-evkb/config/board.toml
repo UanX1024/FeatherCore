@@ -1,0 +1,45 @@
+# MIMXRT1170-EVKB Board Configuration
+
+[board]
+name = "mimxrt1170-evkb"
+vendor = "nxp"
+family = "mimxrt1170"
+mcu = "mimxrt1176dvm"
+
+[cpu]
+core = "cortex-m7"
+frequency = 996000000
+fpu = true
+
+[memory]
+flash_size = 8388608
+sram_size = 2097152
+dtcm_size = 512000
+
+[bootloader]
+boot_base_address = 0x60000000
+boot_size = 0x20000  # 128KB
+boot_stack_size = 0x4000   # 16KB
+
+[kernel]
+boot_base_address = 0x60020000
+boot_size = 0x7E0000  # 7.875MB
+boot_stack_size = 0x8000   # 32KB
+heap_size = 0x40000   # 256KB
+
+[pinout]
+# LED pins
+led1 = "GPIO_AD_09"
+
+# UART pins
+dbg_uart_tx = "GPIO_AD_01"
+dbg_uart_rx = "GPIO_AD_02"
+
+# SPI pins
+spi1_sck = "GPIO_AD_26"
+spi1_miso = "GPIO_AD_27"
+spi1_mosi = "GPIO_AD_28"
+
+# I2C pins
+i2c1_scl = "GPIO_AD_14"
+i2c1_sda = "GPIO_AD_15"

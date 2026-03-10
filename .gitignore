@@ -1,0 +1,40 @@
+# Rust build outputs
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Build tool binaries
+/feathercore-build
+/debug_parse
+/test_parse
+/test_underscore
+
+# Generated linker scripts
+boot/link.x
+kernel/link.x
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Log files
+*.log
+
+# Build scripts (optional, can be included if needed)
+# build_example.sh
