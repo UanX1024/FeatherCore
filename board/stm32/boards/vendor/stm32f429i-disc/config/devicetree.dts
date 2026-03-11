@@ -1,71 +1,136 @@
 // STM32F429I-DISC Device Tree
 // STM32F429I-DISC 设备树
+//
+// 设备树的核心是定义 "硬件属性"（寄存器地址、中断号、时钟、兼容标识等），不定义 "驱动逻辑"
+// 驱动代码通过「通用逻辑 + 适配层」处理不同 SoC 的外设操作差异，适配层由设备树的 compatible 属性触发
 
 /dts-v1/;
 
 / {
+    // 开发板模型描述
+    // 开发板的名称和兼容标识，用于驱动匹配
     model = "STMicroelectronics STM32F429I-DISC development board";
     compatible = "st,stm32f429i-disc";
-    
+
+    // CPU 节点定义
+    // 定义 CPU 的类型和时钟频率等硬件属性
     cpus {
         #address-cells = <1>;
         #size-cells = <0>;
-        
+
         cpu@0 {
+            // 兼容标识，用于匹配对应的 CPU 驱动
             compatible = "arm,cortex-m4";
             device_type = "cpu";
+            // CPU 核心编号
             reg = <0>;
+            // CPU 时钟频率，单位 Hz
             clock-frequency = <180000000>;
         };
     };
-    
+
+    // 内存节点定义
+    // 定义内存的起始地址和大小
     memory {
-        reg = <0x20000000 0x3F000>; /* 252KB SRAM */
+        // 内存起始地址和大小
+        // base address = 0x20000000, size = 0x3F000 (252KB)
+        reg = <0x20000000 0x3F000>;
     };
-    
+
+    // SoC (System on Chip) 节点定义
+    // 包含所有片上外设的硬件属性
     soc {
         #address-cells = <1>;
         #size-cells = <1>;
+        // SoC 兼容标识
         compatible = "st,stm32f429";
+        // 地址转换范围
         ranges;
-        
+
+        // UART1 串口节点定义
+        // 定义串口的寄存器地址、中断号、时钟频率等硬件属性
         usart1: serial@40011000 {
+            // 兼容标识，用于匹配对应的 UART 驱动
             compatible = "st,stm32-usart";
+            // 寄存器基地址和大小
+            // base address = 0x40011000, size = 0x400
             reg = <0x40011000 0x400>;
+            // 中断号
             interrupts = <37>;
+            // 时钟频率，单位 Hz
             clock-frequency = <45000000>;
+            // 波特率
             baud-rate = <115200>;
+            // 校验位
             parity = "none";
+            // 停止位
             stop-bits = <1>;
         };
-        
+
+        // I2C1 总线节点定义
+        // 定义 I2C 控制器的寄存器地址、中断号、时钟频率等硬件属性
         i2c1: i2c@40005400 {
+            // 兼容标识，用于匹配对应的 I2C 驱动
             compatible = "st,stm32-i2c";
+            // 寄存器基地址和大小
+            // base address = 0x40005400, size = 0x400
             reg = <0x40005400 0x400>;
+            // 中断号（可能有多个中断）
             interrupts = <31 32>;
+            // 时钟频率，单位 Hz
             clock-frequency = <100000>;
         };
-        
+
+        // SPI1 总线节点定义
+        // 定义 SPI 控制器的寄存器地址、中断号、时钟频率等硬件属性
         spi1: spi@40013000 {
+            // 兼容标识，用于匹配对应的 SPI 驱动
             compatible = "st,stm32-spi";
+            // 寄存器基地址和大小
+            // base address = 0x40013000, size = 0x400
             reg = <0x40013000 0x400>;
+            // 中断号
             interrupts = <35>;
+            // 时钟频率，单位 Hz
             clock-frequency = <18000000>;
         };
-        
+
+        // GPIO 控制器节点定义
+        // 定义 GPIO 控制器的寄存器基地址等硬件属性
         gpio: gpio@40020000 {
+            // 兼容标识，用于匹配对应的 GPIO 驱动
             compatible = "st,stm32-gpio";
+            // 寄存器基地址和大小
+            // base address = 0x40020000, size = 0x4000
             reg = <0x40020000 0x4000>;
-            
-            led1: led@13 {
-                compatible = "gpio-led";
-                pin = <13>;
-                port = "D";
-                active-low = <false>;
-            };
         };
     };
-    
+
+    // LED 设备节点定义
+    // 这是一个独立的设备节点，通过 phandle 引用 GPIO 控制器
+    // 定义 LED 的引脚配置等硬件属性
+    leds {
+        compatible = "gpio-leds";
+
+        // LED1 设备定义
+        // 使用 GPIO 引脚控制 LED
+        led1: user-led {
+            // 兼容标识，用于匹配对应的 LED 驱动
+            compatible = "st,stm32f429i-disc-led";
+            // GPIO 引脚编号
+            // 在 STM32F429I-DISC 开发板上，LED1 连接到 PI13 引脚
+            pin = <89>;
+            // GPIO 端口（使用 phandle 引用）
+            gpios = <&gpio 89 0>;
+            // LED 是否低电平点亮
+            active-low = <0>;
+            // LED 状态（默认关闭）
+            status = "disabled";
+        };
+    };
+
+    // 别名定义
+    // 为常用设备提供简短的别名，方便驱动查找
     aliases {
         serial0 = &usart1;
         i2c0 = &i2c1;
