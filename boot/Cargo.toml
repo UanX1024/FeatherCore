@@ -19,17 +19,20 @@ feathercore-common = { path = "../common", features = ["async", "mm", "sync"] }
 [features]
 default = []
 
+# ARM architecture
+arm = []
+
 # Cortex-M architectures
-armv6-m = ["feathercore-common/armv6-m"]
-armv7-m = ["feathercore-common/armv7-m"]
-armv7-em = ["feathercore-common/armv7-em"]
-armv8-m-base = ["feathercore-common/armv8-m-base"]
-armv8-m-main = ["feathercore-common/armv8-m-main"]
+armv6-m = ["arm", "feathercore-common/armv6-m"]
+armv7-m = ["arm", "feathercore-common/armv7-m"]
+armv7-em = ["arm", "feathercore-common/armv7-em"]
+armv8-m-base = ["arm", "feathercore-common/armv8-m-base"]
+armv8-m-main = ["arm", "feathercore-common/armv8-m-main"]
 
 # Cortex-A architectures
-armv7-a = ["feathercore-common/armv7-a"]
-armv8-a = ["feathercore-common/armv8-a"]
-armv9-a = ["feathercore-common/armv9-a"]
+armv7-a = ["arm", "feathercore-common/armv7-a"]
+armv8-a = ["arm", "feathercore-common/armv8-a"]
+armv9-a = ["arm", "feathercore-common/armv9-a"]
 
 # RISC-V architecture
 riscv = ["feathercore-common/riscv"]

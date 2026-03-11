@@ -1,14 +1,18 @@
 //! FeatherCore Common Library
-//!
+//! FeatherCore 公共库
+//! 
 //! This library provides common functionality shared between bootloader and kernel.
 //! All code in this library must be `no_std` and should not depend on any external
 //! libraries except architecture-specific code.
+//! 这个库提供了引导加载程序和内核之间共享的通用功能。
+//! 这个库中的所有代码必须是 `no_std` 的，除了架构特定的代码外，不应依赖任何外部库。
 
 #![no_std]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
 // Re-export architecture modules if features are enabled
+// 如果启用了特性，则重新导出架构模块
 #[cfg(all(feature = "arm", not(feature = "riscv")))]
 pub use feathercore_arch_arm as arch;
 
@@ -16,10 +20,12 @@ pub use feathercore_arch_arm as arch;
 pub use feathercore_arch_riscv as arch;
 
 // Core modules
+// 核心模块
 pub mod error;
 pub mod util;
 
 // Optional modules (enabled by features)
+// 可选模块（通过特性启用）
 #[cfg(feature = "async")]
 pub mod async_rt;
 
@@ -39,23 +45,32 @@ pub mod driver;
 pub mod fs;
 
 /// Common error type for FeatherCore
+/// FeatherCore 的通用错误类型
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     /// Invalid argument
+    /// 无效参数
     InvalidArgument,
     /// Operation not supported
+    /// 操作不支持
     NotSupported,
     /// Resource busy
+    /// 资源忙
     Busy,
     /// Timeout
+    /// 超时
     Timeout,
     /// Out of memory
+    /// 内存不足
     OutOfMemory,
     /// Device error
+    /// 设备错误
     DeviceError,
     /// Filesystem error
+    /// 文件系统错误
     FilesystemError,
     /// Other error
+    /// 其他错误
     Other,
 }
 
@@ -75,4 +90,5 @@ impl core::fmt::Display for Error {
 }
 
 /// Result type for FeatherCore operations
+/// FeatherCore 操作的 Result 类型
 pub type Result<T> = core::result::Result<T, Error>;

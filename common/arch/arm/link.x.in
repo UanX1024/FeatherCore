@@ -1,0 +1,65 @@
+/* Linker script for ARM Cortex-M
+ * Based on cortex-m-rt link.x.in
+ */
+
+MEMORY
+{
+  FLASH : ORIGIN = @FLASH_ORIGIN@, LENGTH = @FLASH_LENGTH@
+  RAM : ORIGIN = @RAM_ORIGIN@, LENGTH = @RAM_LENGTH@
+}
+
+REGION_ALIAS("REGION_TEXT", FLASH);
+REGION_ALIAS("REGION_RODATA", FLASH);
+REGION_ALIAS("REGION_DATA", RAM);
+REGION_ALIAS("REGION_BSS", RAM);
+
+SECTIONS
+{
+  .vector_table ORIGIN(FLASH) :
+  {
+    KEEP(*(.vector_table))
+  } > FLASH
+
+  .text :
+  {
+    *(.text)
+    *(.text.*)
+    *(.rodata)
+    *(.rodata.*)
+  } > REGION_TEXT
+
+  .data :
+  {
+    _sdata = .;
+    *(.data)
+    *(.data.*)
+    _edata = .;
+  } > REGION_DATA AT > REGION_RODATA
+
+  .bss :
+  {
+    _sbss = .;
+    *(.bss)
+    *(.bss.*)
+    *(COMMON)
+    _ebss = .;
+  } > REGION_BSS
+
+  .stack (NOLOAD) :
+  {
+    . = ALIGN(8);
+    _stack_top = .;
+    . += @STACK_SIZE@;
+    _stack_bottom = .;
+  } > REGION_BSS
+
+  .heap (NOLOAD) :
+  {
+    . = ALIGN(8);
+    _heap_start = .;
+    . += @HEAP_SIZE@;
+    _heap_end = .;
+  } > REGION_BSS
+}
+
+PROVIDE(_sidata = LOADADDR(.data));
