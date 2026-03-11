@@ -1,47 +1,97 @@
 # STM32H7S78-DK Board Configuration
+# STM32H7S78-DK 板级配置
+#
+# 基于 Zephyr 的 stm32h7s78_dk 板级配置移植
 
 [board]
 name = "stm32h7s78-dk"
+full_name = "STMicroelectronics STM32H7S78 Discovery Kit"
 vendor = "st"
 family = "stm32h7"
 mcu = "stm32h7s78"
 
 [cpu]
+# ARM Cortex-M7 内核
 core = "cortex-m7"
 frequency = 280000000
 fpu = true
 
 [memory]
-flash_size = 2097152
-sram_size = 1048576
-dtcm_size = 128000
-sram1_size = 512000
-sram2_size = 256000
+# Flash: 64KB (内部 Flash)
+flash_size = 65536
+# SRAM: 456KB 总大小
+sram_size = 466944
+# DTCM: 128KB
+dtcm_size = 131072
+# SRAM1: 512KB
+sram1_size = 524288
+# SRAM2: 256KB
+sram2_size = 262144
+# SRAM3: 64KB
+sram3_size = 65536
+# SRAM4: 32KB
+sram4_size = 32768
+
+# 外部 Flash: 128MB (OctoSPI)
+ext_flash_size = 134217728
 
 [bootloader]
+# Bootloader 起始地址和大小
 boot_base_address = 0x08000000
 boot_size = 0x10000  # 64KB
 boot_stack_size = 0x2000   # 8KB
 
 [kernel]
+# Kernel 起始地址和大小
 kernel_base_address = 0x08010000
 kernel_size = 0x1F0000  # 1.9375MB
 kernel_boot_stack_size = 0x4000   # 16KB
 kernel_heap_size = 0x20000   # 128KB
 
+# 支持的外设
+[supported]
+arduino_gpio = true
+gpio = true
+uart = true
+watchdog = true
+entropy = true
+adc = true
+octospi = true
+usbd = true
+memc = true
+
+# 默认配置
+[config]
+arm_mpu = true
+hw_stack_protection = true
+serial = true
+console = true
+uart_console = true
+
 [pinout]
-# LED pins
+# LED pins (根据 STM32H7S78-DK 原理图)
+# LD1: PD13
 led1 = "PD13"
 
-# UART pins
-dbg_uart_tx = "PA2"
-dbg_uart_rx = "PA3"
+# 用户按钮
+user_button = "PC13"
 
-# SPI pins
-spi1_sck = "PA5"
-spi1_miso = "PA6"
-spi1_mosi = "PA7"
+# UART pins (使用 LPUART1)
+dbg_uart_tx = "PG7"
+dbg_uart_rx = "PG8"
 
-# I2C pins
-i2c1_scl = "PB8"
-i2c1_sda = "PB9"
+# OctoSPI pins
+octospi1_io0 = "PD11"
+octospi1_io1 = "PD12"
+octospi1_io2 = "PD13"
+octospi1_io3 = "PD4"
+octospi1_io4 = "PD5"
+octospi1_io5 = "PD6"
+octospi1_io6 = "PG9"
+octospi1_io7 = "PG10"
+octospi1_sck = "PD10"
+octospi1_ncs = "PG12"
+
+# I2C pins (使用 I2C4)
+i2c4_scl = "PF14"
+i2c4_sda = "PF15"
