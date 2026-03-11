@@ -11,6 +11,13 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 
+// Enable alloc for String and Vec support
+// 启用 alloc 以支持 String 和 Vec
+#![feature(alloc)]
+
+extern crate alloc;
+use alloc::{string::String, vec::Vec};
+
 // Re-export architecture modules if features are enabled
 // 如果启用了特性，则重新导出架构模块
 #[cfg(all(feature = "arm", not(feature = "riscv")))]
@@ -23,6 +30,12 @@ pub use feathercore_arch_riscv as arch;
 // 核心模块
 pub mod error;
 pub mod util;
+pub mod devicetree;
+
+// Generated modules
+// 生成的模块
+#[cfg(feature = "devicetree")]
+pub mod generated;
 
 // Optional modules (enabled by features)
 // 可选模块（通过特性启用）

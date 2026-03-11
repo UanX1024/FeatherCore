@@ -13,7 +13,7 @@ use core::panic::PanicInfo;
 
 // Use common library
 // 使用公共库
-use feathercore_common::{AsyncExecutor, delay, yield_now, Result};
+use feathercore_common::{AsyncExecutor, delay, yield_now, Result, devicetree::DeviceTreeManager};
 
 // Architecture-specific startup code is included via arch feature
 // 架构特定的启动代码通过 arch 特性包含
@@ -118,10 +118,46 @@ fn boot_panic(_msg: &str) -> ! {
 /// Initialize minimal hardware required for bootloading
 /// 初始化引导加载所需的最小硬件
 fn init_hardware() {
-    // TODO: Initialize clocks, GPIOs, and basic peripherals
-    // This will be board-specific
-    // TODO: 初始化时钟、GPIO 和基本外设
-    // 这将是板级特定的
+    // Initialize device tree
+    // 初始化设备树
+    #[cfg(feature = "devicetree")]
+    {
+        let dt_manager = DeviceTreeManager::from_generated();
+        
+        // Example: Get CPU clock frequency from device tree
+        // 示例：从设备树获取 CPU 时钟频率
+        if let Some(cpu_node) = dt_manager.find_node("/cpus/cpu") {
+            if let Some(&feathercore_common::devicetree::PropertyValue::Integer(clock_freq)) = dt_manager.get_property("/cpus/cpu", "clock-frequency") {
+                // Use clock frequency for hardware initialization
+                // 使用时钟频率进行硬件初始化
+                // TODO: Implement clock initialization based on device tree
+            }
+        }
+        
+        // Example: Get memory configuration from device tree
+        // 示例：从设备树获取内存配置
+        if let Some(memory_node) = dt_manager.find_node("/memory") {
+            if let Some(&feathercore_common::devicetree::PropertyValue::IntegerArray(ref reg)) = dt_manager.get_property("/memory", "reg") {
+                if reg.len() >= 2 {
+                    let sram_base = reg[0];
+                    let sram_size = reg[1];
+                    // Use memory configuration for hardware initialization
+                    // 使用内存配置进行硬件初始化
+                    // TODO: Implement memory initialization based on device tree
+                }
+            }
+        }
+    }
+    
+    // Fallback for boards without device tree
+    // 无设备树板的回退方案
+    #[cfg(not(feature = "devicetree"))]
+    {
+        // TODO: Initialize clocks, GPIOs, and basic peripherals
+        // This will be board-specific
+        // TODO: 初始化时钟、GPIO 和基本外设
+        // 这将是板级特定的
+    }
 }
 
 /// Load kernel from storage (flash, SD card, etc.)

@@ -9,6 +9,7 @@ target/
 # Generated files
 boot/link.x
 kernel/link.x
+common/src/generated/
 
 # Process files
 false/

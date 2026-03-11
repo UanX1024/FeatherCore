@@ -1,0 +1,75 @@
+// STM32F429I-DISC Device Tree
+// STM32F429I-DISC 设备树
+
+/dts-v1/;
+
+/ {
+    model = "STMicroelectronics STM32F429I-DISC development board";
+    compatible = "st,stm32f429i-disc";
+    
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        
+        cpu@0 {
+            compatible = "arm,cortex-m4";
+            device_type = "cpu";
+            reg = <0>;
+            clock-frequency = <180000000>;
+        };
+    };
+    
+    memory {
+        reg = <0x20000000 0x3F000>; /* 252KB SRAM */
+    };
+    
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "st,stm32f429";
+        ranges;
+        
+        usart1: serial@40011000 {
+            compatible = "st,stm32-usart";
+            reg = <0x40011000 0x400>;
+            interrupts = <37>;
+            clock-frequency = <45000000>;
+            baud-rate = <115200>;
+            parity = "none";
+            stop-bits = <1>;
+        };
+        
+        i2c1: i2c@40005400 {
+            compatible = "st,stm32-i2c";
+            reg = <0x40005400 0x400>;
+            interrupts = <31 32>;
+            clock-frequency = <100000>;
+        };
+        
+        spi1: spi@40013000 {
+            compatible = "st,stm32-spi";
+            reg = <0x40013000 0x400>;
+            interrupts = <35>;
+            clock-frequency = <18000000>;
+        };
+        
+        gpio: gpio@40020000 {
+            compatible = "st,stm32-gpio";
+            reg = <0x40020000 0x4000>;
+            
+            led1: led@13 {
+                compatible = "gpio-led";
+                pin = <13>;
+                port = "D";
+                active-low = <false>;
+            };
+        };
+    };
+    
+    aliases {
+        serial0 = &usart1;
+        i2c0 = &i2c1;
+        spi0 = &spi1;
+        led0 = &led1;
+    };
+};

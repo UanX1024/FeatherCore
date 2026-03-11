@@ -14,6 +14,54 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::collections::HashMap;
 
+/// Device tree node
+/// 设备树节点
+#[derive(Debug, Clone)]
+struct DeviceTreeNode {
+    /// Node name
+    /// 节点名称
+    name: String,
+    /// Node path
+    /// 节点路径
+    path: String,
+    /// Properties
+    /// 属性
+    properties: Vec<Property>,
+    /// Children nodes
+    /// 子节点
+    children: Vec<DeviceTreeNode>,
+}
+
+/// Device tree property
+/// 设备树属性
+#[derive(Debug, Clone)]
+struct Property {
+    /// Property name
+    /// 属性名称
+    name: String,
+    /// Property value
+    /// 属性值
+    value: PropertyValue,
+}
+
+/// Property value types
+/// 属性值类型
+#[derive(Debug, Clone)]
+enum PropertyValue {
+    /// String value
+    /// 字符串值
+    String(String),
+    /// Integer value
+    /// 整数值
+    Integer(u64),
+    /// Boolean value
+    /// 布尔值
+    Boolean(bool),
+    /// Array of integers
+    /// 整数数组
+    IntegerArray(Vec<u64>),
+}
+
 const VERSION: &str = "0.1.0";
 
 /// 主函数
@@ -224,8 +272,8 @@ fn find_board_config(board_name: &str) -> Option<PathBuf> {
 /// 生成配置
 /// Generate configuration
 /// 
-/// 根据开发板配置生成链接脚本
-/// Generates linker scripts based on board configuration
+/// 根据开发板配置生成链接脚本和设备树信息
+/// Generates linker scripts and device tree information based on board configuration
 fn generate_config(board_name: &str) {
     println!("Generating configuration for {}...", board_name);
     
@@ -237,6 +285,7 @@ fn generate_config(board_name: &str) {
             // Ensure directories exist
             fs::create_dir_all("boot").unwrap_or_default();
             fs::create_dir_all("kernel").unwrap_or_default();
+            fs::create_dir_all("common/src/generated").unwrap_or_default();
             
             // 读取配置文件
             // Read configuration file
@@ -330,6 +379,24 @@ fn generate_config(board_name: &str) {
                 fs::write("boot/link.x", boot_script).unwrap_or_default();
                 fs::write("kernel/link.x", kernel_script).unwrap_or_default();
                 
+                // 处理设备树
+                // Process device tree
+                if let Some(dts_path) = find_device_tree_file(board_name) {
+                    if let Ok(dts_content) = fs::read_to_string(&dts_path) {
+                        if let Ok(device_tree_info) = generate_device_tree_info(&dts_content) {
+                            fs::write("common/src/generated/devicetree.rs", device_tree_info).unwrap_or_default();
+                            println!("Generated device tree information:");
+                            println!("  - common/src/generated/devicetree.rs");
+                        } else {
+                            println!("Warning: Failed to generate device tree information");
+                        }
+                    } else {
+                        println!("Warning: Could not read device tree file");
+                    }
+                } else {
+                    println!("Warning: Device tree file not found");
+                }
+                
                 println!("Generated linker scripts:");
                 println!("  - boot/link.x");
                 println!("  - kernel/link.x");
@@ -341,6 +408,301 @@ fn generate_config(board_name: &str) {
         None => {
             println!("Error: Board '{}' not found", board_name);
         }
+    }
+}
+
+/// 查找设备树文件
+/// Find device tree file
+/// 
+/// 搜索指定开发板的设备树文件
+/// Searches for the device tree file for the specified board
+fn find_device_tree_file(board_name: &str) -> Option<PathBuf> {
+    let board_dir = PathBuf::from("board");
+    
+    // 搜索所有可能的路径
+    // Search all possible paths
+    let patterns = vec![
+        format!("{}/config/devicetree.dts", board_name),
+        format!("{}/devicetree.dts", board_name),
+        format!("vendor/{}/config/devicetree.dts", board_name),
+        format!("vendor/{}/devicetree.dts", board_name),
+        // 支持嵌套目录结构
+        // Support nested directory structure
+        format!("*/boards/vendor/{}/config/devicetree.dts", board_name),
+        format!("*/boards/vendor/{}/devicetree.dts", board_name),
+    ];
+    
+    for pattern in patterns {
+        let path = board_dir.join(pattern);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+    
+    // 递归搜索所有子目录
+    // Recursively search all subdirectories
+    if let Ok(entries) = fs::read_dir(board_dir) {
+        for entry in entries.flatten() {
+            if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
+                let vendor_dir = entry.path().join("boards/vendor").join(board_name).join("config/devicetree.dts");
+                if vendor_dir.exists() {
+                    return Some(vendor_dir);
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+/// 生成设备树信息
+/// Generate device tree information
+/// 
+/// 解析DTS文件并生成Rust代码形式的设备树信息
+/// Parses DTS file and generates device tree information in Rust code form
+fn generate_device_tree_info(dts_content: &str) -> Result<String, String> {
+    // 简单的DTS解析实现
+    // Simple DTS parsing implementation
+    let mut root = DeviceTreeNode {
+        name: "root".to_string(),
+        path: "/".to_string(),
+        properties: Vec::new(),
+        children: Vec::new(),
+    };
+    
+    let mut current_path = "/".to_string();
+    let mut stack: Vec<*mut DeviceTreeNode> = Vec::new();
+    let mut current_node: *mut DeviceTreeNode = &mut root;
+    
+    for line in dts_content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with("//") || line.starts_with("/*") || line.starts_with("*") {
+            continue;
+        }
+        
+        if line.starts_with("/") && line.ends_with("{") {
+            // 根节点
+            let name = line.strip_suffix(" {").unwrap_or(&line).trim_start_matches("/");
+            if !name.is_empty() {
+                unsafe {
+                    (*current_node).name = name.to_string();
+                }
+            }
+        } else if line.starts_with("}") {
+            // 结束节点
+            if let Some(parent) = stack.pop() {
+                current_node = parent;
+                current_path = current_path.rsplit_once('/').unwrap_or(("", "/")).0.to_string();
+                if current_path.is_empty() {
+                    current_path = "/".to_string();
+                }
+            }
+        } else if line.ends_with("{") {
+            // 开始新节点
+            let name = line.strip_suffix(" {").unwrap_or(&line);
+            // 提取节点名称，去除冒号和后面的内容
+            let node_name = name.split('@').next().unwrap_or(name).split(':').next().unwrap_or(name).trim().to_string();
+            let node_path = if current_path == "/" {
+                format!("/{}", node_name)
+            } else {
+                format!("{}/{}", current_path, node_name)
+            };
+            
+            let new_node = DeviceTreeNode {
+                name: node_name,
+                path: node_path.clone(),
+                properties: Vec::new(),
+                children: Vec::new(),
+            };
+            
+            unsafe {
+                stack.push(current_node);
+                (*current_node).children.push(new_node);
+                current_node = (*current_node).children.last_mut().unwrap();
+            }
+            current_path = node_path;
+        } else if line.contains("=") {
+            // 属性
+            let parts: Vec<&str> = line.split('=').collect();
+            if parts.len() != 2 {
+                continue;
+            }
+            
+            let name = parts[0].trim().to_string();
+            let value_str = parts[1].trim();
+            
+            // 处理原始值
+            let mut processed_value = value_str.to_string();
+            
+            // 先去除注释，再去除分号，最后检查尖括号
+            // 去除注释
+            if let Some(comment_pos) = processed_value.find("/*") {
+                processed_value = processed_value[..comment_pos].trim().to_string();
+            }
+            
+            // 去除所有分号
+            processed_value = processed_value.replace(';', "").trim().to_string();
+            
+            let value = if processed_value.starts_with('<') && processed_value.ends_with('>') {
+                // 提取尖括号内的内容
+                let content = processed_value.trim_matches(&['<', '>'][..]);
+                // 去除注释
+                let content = content.split("/*").next().unwrap_or(content).trim();
+                let parts: Vec<&str> = content.split_whitespace().collect();
+                
+                // 检查是否是布尔值
+                if parts.len() == 1 {
+                    if parts[0] == "true" {
+                        PropertyValue::Boolean(true)
+                    } else if parts[0] == "false" {
+                        PropertyValue::Boolean(false)
+                    } else if let Ok(num) = parse_hex_or_decimal_u64(parts[0]) {
+                        // 单个整数（支持十六进制）
+                        PropertyValue::Integer(num)
+                    } else {
+                        // 如果解析失败，作为字符串处理
+                        PropertyValue::String(processed_value)
+                    }
+                } else {
+                    // 尝试解析为整数数组（支持十六进制）
+                    let mut array = Vec::new();
+                    let parts_len = parts.len();
+                    for part in &parts {
+                        if let Ok(num) = parse_hex_or_decimal_u64(part) {
+                            array.push(num);
+                        } else {
+                            // 如果有任何部分无法解析为整数，就作为字符串处理
+                            break;
+                        }
+                    }
+                    if !array.is_empty() && array.len() == parts_len {
+                        PropertyValue::IntegerArray(array)
+                    } else {
+                        PropertyValue::String(processed_value)
+                    }
+                }
+            } else if processed_value == "true" {
+                // 布尔值 true
+                PropertyValue::Boolean(true)
+            } else if processed_value == "false" {
+                // 布尔值 false
+                PropertyValue::Boolean(false)
+            } else if processed_value.starts_with('"') && processed_value.ends_with('"') {
+                // 字符串
+                let s = processed_value.trim_matches('"').to_string();
+                PropertyValue::String(s)
+            } else {
+                // 其他类型，作为字符串处理
+                PropertyValue::String(processed_value)
+            };
+            
+            unsafe {
+                (*current_node).properties.push(Property {
+                    name,
+                    value,
+                });
+            }
+        }
+    }
+    
+    // 生成Rust代码
+    // Generate Rust code
+    let mut rust_code = String::new();
+    rust_code.push_str("//! Generated device tree information\n");
+    rust_code.push_str("//! 生成的设备树信息\n");
+    rust_code.push_str("\n");
+    rust_code.push_str("use crate::devicetree::{DeviceTreeNode, Property, PropertyValue};\n");
+    rust_code.push_str("\n");
+    rust_code.push_str("/// Pre-parsed device tree\n");
+    rust_code.push_str("/// 预解析的设备树\n");
+    rust_code.push_str("pub static DEVICE_TREE: DeviceTreeNode = DeviceTreeNode {\n");
+    rust_code.push_str(&format!("    name: \"{}\",\n", root.name));
+    rust_code.push_str("    path: \"/\",\n");
+    rust_code.push_str("    properties: vec![],\n");
+    rust_code.push_str("    children: vec![\n");
+    
+    // 递归生成子节点
+    // Recursively generate child nodes
+    generate_node_code(&root, &mut rust_code, 2);
+    
+    rust_code.push_str("    ],\n");
+    rust_code.push_str("};\n");
+    
+    Ok(rust_code)
+}
+
+/// 生成节点代码
+/// Generate node code
+/// 
+/// 递归生成设备树节点的Rust代码
+/// Recursively generates Rust code for device tree nodes
+fn generate_node_code(node: &DeviceTreeNode, code: &mut String, indent: usize) {
+    let indent_str = " ".repeat(indent);
+    
+    for child in &node.children {
+        code.push_str(&format!("{}{{\n", indent_str));
+        code.push_str(&format!("{}    name: \"{}\",\n", indent_str, child.name));
+        code.push_str(&format!("{}    path: \"{}\",\n", indent_str, child.path));
+        
+        code.push_str(&format!("{}    properties: vec![\n", indent_str));
+        for prop in &child.properties {
+            code.push_str(&format!("{}        Property {{\n", indent_str));
+            code.push_str(&format!("{}            name: \"{}\",\n", indent_str, prop.name));
+            code.push_str(&format!("{}            value: ", indent_str));
+            
+            match &prop.value {
+                PropertyValue::String(s) => {
+                    // 确保字符串值被正确引用，避免双重引号
+                    let escaped_s = s.replace('"', "\\\"");
+                    code.push_str(&format!("PropertyValue::String(\"{}\")\n", escaped_s));
+                }
+                PropertyValue::Integer(i) => {
+                    code.push_str(&format!("PropertyValue::Integer({})\n", i));
+                }
+                PropertyValue::Boolean(b) => {
+                    code.push_str(&format!("PropertyValue::Boolean({})\n", b));
+                }
+                PropertyValue::IntegerArray(arr) => {
+                    code.push_str(&format!("PropertyValue::IntegerArray(vec!["));
+                    for (i, num) in arr.iter().enumerate() {
+                        if i > 0 {
+                            code.push_str(", ");
+                        }
+                        code.push_str(&num.to_string());
+                    }
+                    code.push_str("]))\n");
+                }
+                PropertyValue::StringArray(arr) => {
+                    code.push_str(&format!("PropertyValue::StringArray(vec!["));
+                    for (i, s) in arr.iter().enumerate() {
+                        if i > 0 {
+                            code.push_str(", ");
+                        }
+                        code.push_str(&format!("\"{}\"", s));
+                    }
+                    code.push_str("]))\n");
+                }
+                PropertyValue::Binary(arr) => {
+                    code.push_str(&format!("PropertyValue::Binary(vec!["));
+                    for (i, b) in arr.iter().enumerate() {
+                        if i > 0 {
+                            code.push_str(", ");
+                        }
+                        code.push_str(&b.to_string());
+                    }
+                    code.push_str("]))\n");
+                }
+            }
+            
+            code.push_str(&format!("{}        }},\n", indent_str));
+        }
+        code.push_str(&format!("{}    ],\n", indent_str));
+        
+        code.push_str(&format!("{}    children: vec![\n", indent_str));
+        generate_node_code(child, code, indent + 4);
+        code.push_str(&format!("{}    ],\n", indent_str));
+        
+        code.push_str(&format!("{}}},\n", indent_str));
     }
 }
 
@@ -548,6 +910,7 @@ fn clean_build() {
     // Clean linker scripts
     let _ = fs::remove_file("boot/link.x");
     let _ = fs::remove_file("kernel/link.x");
+    let _ = fs::remove_file("common/src/generated/devicetree.rs");
     
     // 清理构建输出
     // Clean build output
@@ -645,6 +1008,19 @@ fn parse_hex_or_decimal(s: &str) -> u32 {
         // 直接解析，配置文件不再使用下划线分隔数字
         // Direct parsing, configuration files no longer use underscores to separate digits
         s.parse().unwrap_or(0)
+    }
+}
+
+/// 解析十六进制或十进制字符串为 u64
+/// Parse hexadecimal or decimal string to u64
+/// 
+/// 解析十六进制或十进制格式的数字字符串为 u64 类型
+/// Parses hexadecimal or decimal format number strings to u64 type
+fn parse_hex_or_decimal_u64(s: &str) -> Result<u64, std::num::ParseIntError> {
+    if s.starts_with("0x") || s.starts_with("0X") {
+        u64::from_str_radix(&s[2..], 16)
+    } else {
+        s.parse::<u64>()
     }
 }
 

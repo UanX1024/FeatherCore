@@ -9,6 +9,10 @@
 
 use core::panic::PanicInfo;
 
+// Use common library
+// 使用公共库
+use feathercore_common::{devicetree::DeviceTreeManager};
+
 /// Kernel entry point
 /// 内核入口点
 #[no_mangle]
@@ -29,19 +33,61 @@ pub extern "C" fn kernel_main() -> ! {
 /// Initialize kernel subsystems
 /// 初始化内核子系统
 fn init_kernel() {
-    // TODO: Initialize memory management
+    // Initialize device tree
+    // 初始化设备树
+    #[cfg(feature = "devicetree")]{
+        let dt_manager = DeviceTreeManager::from_generated();
+        
+        // Example: Get memory configuration from device tree
+        // 示例：从设备树获取内存配置
+        if let Some(memory_node) = dt_manager.find_node("/memory") {
+            if let Some(&feathercore_common::devicetree::PropertyValue::IntegerArray(ref reg)) = dt_manager.get_property("/memory", "reg") {
+                if reg.len() >= 2 {
+                    let sram_base = reg[0];
+                    let sram_size = reg[1];
+                    // Use memory configuration for memory initialization
+                    // 使用内存配置进行内存初始化
+                    // TODO: Implement memory initialization based on device tree
+                }
+            }
+        }
+        
+        // Example: Get UART configuration from device tree
+        // 示例：从设备树获取 UART 配置
+        if let Some(serial_node) = dt_manager.find_node("/soc/serial") {
+            if let Some(&feathercore_common::devicetree::PropertyValue::Integer(base)) = dt_manager.get_property("/soc/serial", "reg") {
+                if let Some(&feathercore_common::devicetree::PropertyValue::Integer(clock_freq)) = dt_manager.get_property("/soc/serial", "clock-frequency") {
+                    if let Some(&feathercore_common::devicetree::PropertyValue::Integer(baud_rate)) = dt_manager.get_property("/soc/serial", "baud-rate") {
+                        // Use UART configuration for serial driver initialization
+                        // 使用 UART 配置进行串口驱动初始化
+                        // TODO: Implement serial driver initialization based on device tree
+                    }
+                }
+            }
+        }
+        
+        // Example: Get LED configuration from device tree
+        // 示例：从设备树获取 LED 配置
+        if let Some(led_node) = dt_manager.find_node("/soc/gpio/led") {
+            // Use LED configuration for LED driver initialization
+            // 使用 LED 配置进行 LED 驱动初始化
+            // TODO: Implement LED driver initialization based on device tree
+        }
+    }
+    
+    // Initialize memory management
     // 初始化内存管理
     init_memory();
     
-    // TODO: Initialize interrupt controller
+    // Initialize interrupt controller
     // 初始化中断控制器
     init_interrupts();
     
-    // TODO: Initialize device drivers
+    // Initialize device drivers
     // 初始化设备驱动
     init_drivers();
     
-    // TODO: Initialize system services
+    // Initialize system services
     // 初始化系统服务
     init_services();
 }
