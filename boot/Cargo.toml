@@ -46,9 +46,20 @@ mimxrt1170-evkb = ["armv7-m"]
 opt-level = 1
 
 [profile.release]
-opt-level = "s"  # Optimize for size
+opt-level = "s"
 lto = true
 codegen-units = 1
+panic = "abort"
+
+[target.thumbv7em-none-eabihf]
+rustflags = [
+    "-C", "link-arg=-Tlink.x"
+]
+
+[target.thumbv8m.main-none-eabihf]
+rustflags = [
+    "-C", "link-arg=-Tlink.x"
+]
 
 [target.thumbv7m-none-eabi]
 rustflags = [

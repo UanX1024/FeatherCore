@@ -442,9 +442,9 @@ pub unsafe fn jump_to_kernel(vector_table_addr: usize) -> ! {
     let vector_table = vector_table_addr as *const u32;
     let reset_handler_addr = *vector_table.add(1); // Offset 4 bytes
     
-    // Convert to function pointer
-    // 转换为函数指针
-    let kernel_entry: unsafe extern "C" fn() -> ! = core::mem::transmute(reset_handler_addr);
+    // Convert to function pointer using correct pointer type
+    // 使用正确的指针类型转换为函数指针
+    let kernel_entry: fn() -> ! = unsafe { core::mem::transmute(reset_handler_addr as *const ()) };
     
     // Disable interrupts
     // 禁用中断

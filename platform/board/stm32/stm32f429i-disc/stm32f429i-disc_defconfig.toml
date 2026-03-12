@@ -12,9 +12,6 @@ vendor = "st"
 family = "stm32f4"
 mcu = "stm32f429vgt6"
 
-[memory]
-sram_size = 196608
-
 [supported]
 counter = true
 i2c = true
