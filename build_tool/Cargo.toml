@@ -1,0 +1,9 @@
+[package]
+name = "feathercore-build"
+version = "0.1.0"
+edition = "2021"
+authors = ["FeatherCore Team"]
+description = "FeatherCore build tool for generating configuration and building bootloader/kernel"
+
+[dependencies]
+toml = "0.8"

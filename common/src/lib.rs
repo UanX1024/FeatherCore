@@ -9,7 +9,6 @@
 
 #![no_std]
 #![deny(missing_docs)]
-#![deny(unsafe_code)]
 
 // Enable alloc for String and Vec support
 // 启用 alloc 以支持 String 和 Vec
@@ -54,6 +53,56 @@ pub mod driver;
 
 #[cfg(feature = "fs")]
 pub mod fs;
+
+/// Global allocator for no_std environment
+/// 用于 no_std 环境的全局分配器
+#[cfg(feature = "mm")]
+mod heap_alloc {
+    use core::alloc::{GlobalAlloc, Layout};
+    use core::ptr::null_mut;
+
+    /// Simple global allocator using a static buffer
+    /// 使用静态缓冲区的简单全局分配器
+    #[repr(align(8))]
+    pub struct BumpAlloc {
+        buf: [u8; 32 * 1024], // 32KB buffer
+    }
+
+    impl BumpAlloc {
+        pub const fn new() -> Self {
+            Self {
+                buf: [0; 32 * 1024],
+            }
+        }
+    }
+
+    unsafe impl GlobalAlloc for BumpAlloc {
+        unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
+            use core::sync::atomic::{AtomicUsize, Ordering};
+            static POS: AtomicUsize = AtomicUsize::new(0);
+            static mut BUF: [u8; 32 * 1024] = [0; 32 * 1024];
+            
+            let pos = POS.load(Ordering::Relaxed);
+            let aligned_pos = (pos + _layout.align() - 1) & !(_layout.align() - 1);
+            
+            if aligned_pos + _layout.size() > BUF.len() {
+                null_mut()
+            } else {
+                POS.store(aligned_pos + _layout.size(), Ordering::Relaxed);
+                BUF.as_mut_ptr().add(aligned_pos)
+            }
+        }
+
+        unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        }
+    }
+}
+
+/// Global allocator instance
+/// 全局分配器实例
+#[cfg(feature = "mm")]
+#[global_allocator]
+static GLOBAL_ALLOC: heap_alloc::BumpAlloc = heap_alloc::BumpAlloc::new();
 
 /// Common error type for FeatherCore
 /// FeatherCore 的通用错误类型
