@@ -40,6 +40,14 @@ driver = []     # Enable driver framework
 fs = []         # Enable filesystem framework
 devicetree = [] # Enable device tree support
 
+# Driver features
+driver_gpio = ["driver"]   # GPIO driver
+driver_i2c = ["driver"]     # I2C driver
+driver_spi = ["driver"]     # SPI driver
+driver_serial = ["driver"]  # Serial/UART driver
+driver_i2s = ["driver"]    # I2S driver
+driver_timer = ["driver"]   # Timer/Counter driver
+
 [profile.dev]
 opt-level = 1
 

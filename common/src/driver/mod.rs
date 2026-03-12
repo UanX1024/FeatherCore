@@ -66,3 +66,9 @@ impl DriverManager {
 // Device tree aware drivers
 // 设备树感知驱动
 pub mod led;
+pub mod gpio;
+pub mod i2c;
+pub mod serial;
+pub mod spi;
+pub mod i2s;
+pub mod timer;
