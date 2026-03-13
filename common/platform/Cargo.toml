@@ -1,0 +1,18 @@
+[package]
+name = "feathercore-platform"
+version = "0.1.0"
+edition = "2021"
+description = "FeatherCore platform-specific support"
+homepage = "https://github.com/feathercore-rs/feathercore"
+repository = "https://github.com/feathercore-rs/feathercore"
+license = "MIT OR Apache-2.0"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+feathercore-common = { path = ".." }
+
+[features]
+default = ["devicetree"]
+devicetree = []

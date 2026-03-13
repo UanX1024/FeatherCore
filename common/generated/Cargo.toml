@@ -1,0 +1,20 @@
+[package]
+name = "feathercore-generated"
+version = "0.1.0"
+edition = "2021"
+authors = ["FeatherCore Contributors"]
+license = "MIT OR Apache-2.0"
+description = "Generated code for FeatherCore (device tree, etc.)"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

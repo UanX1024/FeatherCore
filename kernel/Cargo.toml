@@ -2,7 +2,7 @@
 name = "feathercore-kernel"
 description = "FeatherCore RTOS Kernel"
 version = "0.1.0"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["FeatherCore Contributors"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
@@ -13,7 +13,7 @@ test = false
 bench = false
 
 [dependencies]
-feathercore-common = { path = "../common", features = ["async", "mm", "sync", "driver", "fs"] }
+feathercore-common = { path = "../common", features = ["driver", "devicetree"] }
 feathercore-arch-arm = { path = "../common/arch/arm", optional = true }
 feathercore-arch-riscv = { path = "../common/arch/riscv", optional = true }
 
@@ -39,3 +39,6 @@ riscv = ["feathercore-arch-riscv/riscv"]
 stm32f429i-disc = ["armv7-em"]
 stm32n6570-dk = ["armv8-m-main"]
 mimxrt1170-evkb = ["armv7-m"]
+
+# Device tree support
+devicetree = ["feathercore-common/devicetree"]

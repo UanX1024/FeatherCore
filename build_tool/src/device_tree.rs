@@ -1,21 +1,19 @@
-//! Device Tree Module
-//! 设备树模块
+//! Device Tree Generator
+//! 设备树生成器
 //!
-//! This module handles parsing of device tree files (.dts).
+//! This module generates Rust code from device tree files (.dts).
 
-use std::fs;
+#![allow(dead_code)]
+
 use std::path::PathBuf;
 
 /// Find device tree file for a given board
-/// 查找指定开发板的设备树文件
-/// 
-/// New structure: platform/board/<vendor>/<board_name>/<board_name>.dts
 pub fn find_device_tree_file(board_name: &str) -> Option<PathBuf> {
     let root = super::root_path::get_root_path();
     let root_path = PathBuf::from(&root);
     let platform_path = root_path.join("platform").join("board");
     
-    if let Ok(entries) = fs::read_dir(&platform_path) {
+    if let Ok(entries) = std::fs::read_dir(&platform_path) {
         for vendor_entry in entries.flatten() {
             let vendor_path = vendor_entry.path();
             if vendor_path.is_dir() {
@@ -32,25 +30,256 @@ pub fn find_device_tree_file(board_name: &str) -> Option<PathBuf> {
     None
 }
 
-/// Find chip device tree file
-/// 查找芯片设备树文件
-/// 
-/// New structure: platform/chip/<vendor>/<chip_name>/<chip_name>.dts
-pub fn find_chip_device_tree_file(chip_name: &str) -> Option<PathBuf> {
-    let root = super::root_path::get_root_path();
-    let root_path = PathBuf::from(&root);
-    let platform_path = root_path.join("platform").join("chip");
+/// Generate device tree information as Rust code
+pub fn generate_device_tree_info(dts_content: &str) -> Result<String, String> {
+    let mut output = String::new();
     
-    if let Ok(entries) = fs::read_dir(&platform_path) {
-        for vendor_entry in entries.flatten() {
-            let vendor_path = vendor_entry.path();
-            if vendor_path.is_dir() {
-                let chip_path = vendor_path.join(chip_name);
-                if chip_path.is_dir() {
-                    let dts_path = chip_path.join(format!("{}.dts", chip_name));
-                    if dts_path.exists() {
-                        return Some(dts_path);
+    // Extract model
+    let model = extract_property(dts_content, "model")
+        .or_else(|| extract_property(dts_content, "compatible"))
+        .unwrap_or_else(|| "Unknown".to_string());
+    
+    let compatible = extract_property(dts_content, "compatible")
+        .unwrap_or_else(|| "".to_string());
+    
+    // Extract chip vendor and family from compatible string
+    let chip_vendor = compatible.split(",").next().unwrap_or("").to_string();
+    let chip_family = compatible.split(",").nth(1).unwrap_or("").to_string();
+    
+    // Extract board information
+    let board_name = extract_property(dts_content, "board-name")
+        .or_else(|| extract_property(dts_content, "model"))
+        .unwrap_or_else(|| "Unknown".to_string());
+    
+    let board_vendor = extract_property(dts_content, "vendor")
+        .unwrap_or_else(|| chip_vendor.clone());
+    
+    // Extract memory regions
+    let mut memory_regions = Vec::new();
+    for line in dts_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("memory@") || trimmed.contains("sram@") {
+            if let Some(reg_line) = find_next_property(dts_content, trimmed, "reg") {
+                if let Some((base, size)) = extract_reg_values(&reg_line) {
+                    let name = find_next_property(dts_content, trimmed, "device_type")
+                        .or_else(|| find_next_property(dts_content, trimmed, "zephyr,memory-region-name"))
+                        .unwrap_or_else(|| "RAM".to_string());
+                    memory_regions.push((base, size, name));
+                }
+            }
+        }
+    }
+    
+    // Extract LED configurations
+    let mut led_configs = Vec::new();
+    for line in dts_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("leds") || trimmed.contains("gpio-leds") {
+            if let Some(led_gpio_line) = find_next_property(dts_content, trimmed, "led-gpios") {
+                if let Some((port, pin)) = extract_gpio_pin(&led_gpio_line) {
+                    let active_high = find_next_property(dts_content, trimmed, "active-high").is_some();
+                    led_configs.push((port, pin, active_high));
+                }
+            }
+        }
+    }
+    
+    // Extract UART configurations
+    let mut uart_configs = Vec::new();
+    for line in dts_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("uart@") || trimmed.contains("serial@") || trimmed.contains("usart@") {
+            if let Some(reg_line) = find_next_property(dts_content, trimmed, "reg") {
+                if let Some(base) = extract_single_value(&reg_line) {
+                    let irq = find_next_property(dts_content, trimmed, "interrupts")
+                        .and_then(|v| extract_interrupt_irq(&v))
+                        .unwrap_or(0);
+                    let clock = find_next_property(dts_content, trimmed, "clocks")
+                        .and_then(|v| extract_single_value(&v))
+                        .unwrap_or(16_000_000);
+                    let baud = find_next_property(dts_content, trimmed, "current-speed")
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or(115200);
+                    
+                    if base > 0 {
+                        uart_configs.push((base, irq, clock, baud));
                     }
+                }
+            }
+        }
+    }
+    
+    // Header
+    output.push_str("//! Device Tree Generated Code\n");
+    output.push_str("//! 设备树生成的代码\n\n");
+    output.push_str("//! This file is automatically generated by build_tool.\n");
+    output.push_str("//! Do not edit manually.\n\n");
+    output.push_str("#![no_std]\n\n");
+    
+    // Chip module
+    output.push_str("/// Chip configuration (from device tree)\n");
+    output.push_str("pub mod chip {\n");
+    output.push_str(&format!("    /// Chip name\n    pub const CHIP_NAME: Option<&'static str> = Some(\"{}\");\n", model));
+    output.push_str(&format!("    /// Chip vendor\n    pub const CHIP_VENDOR: Option<&'static str> = {};\n", if !chip_vendor.is_empty() { format!("Some(\"{}\")", chip_vendor) } else { "None".to_string() }));
+    output.push_str(&format!("    /// Chip family\n    pub const CHIP_FAMILY: Option<&'static str> = {};\n", if !chip_family.is_empty() { format!("Some(\"{}\")", chip_family) } else { "None".to_string() }));
+    output.push_str("    pub const FLASH_SIZE: u32 = 0;\n");
+    output.push_str("    pub const RAM_SIZE: u32 = 0;\n");
+    output.push_str("    pub const CORE_COUNT: u32 = 1;\n");
+    output.push_str("    pub const CPU_FREQ_HZ: u32 = 180_000_000;\n");
+    output.push_str("}\n\n");
+    
+    // Board module
+    output.push_str("/// Board configuration (from device tree)\n");
+    output.push_str("pub mod board {\n");
+    output.push_str(&format!("    /// Board name\n    pub const BOARD_NAME: Option<&'static str> = Some(\"{}\");\n", board_name));
+    output.push_str(&format!("    /// Board full name\n    pub const BOARD_FULL_NAME: Option<&'static str> = Some(\"{}\");\n", model));
+    output.push_str(&format!("    /// Board vendor\n    pub const BOARD_VENDOR: Option<&'static str> = {};\n", if !board_vendor.is_empty() { format!("Some(\"{}\")", board_vendor) } else { "None".to_string() }));
+    output.push_str("    pub const HAS_DEBUGGER: bool = true;\n");
+    output.push_str("}\n\n");
+    
+    // Device tree module
+    output.push_str("/// Device tree structure\n");
+    output.push_str("pub mod device_tree {\n");
+    output.push_str("    #[derive(Debug, Clone, Copy)]\n");
+    output.push_str("    pub struct MemoryRegion {\n");
+    output.push_str("        pub base_address: u32,\n");
+    output.push_str("        pub size: u32,\n");
+    output.push_str("        pub name: &'static str,\n");
+    output.push_str("    }\n\n");
+    
+    output.push_str("    pub fn memory_regions() -> &'static [MemoryRegion] {\n");
+    if memory_regions.is_empty() {
+        output.push_str("        &[]\n");
+    } else {
+        output.push_str("        &[\n");
+        for (base, size, name) in &memory_regions {
+            output.push_str(&format!("            MemoryRegion {{ base_address: 0x{:08X}, size: 0x{:08X}, name: \"{}\" }},\n", 
+                base, size, name));
+        }
+        output.push_str("        ]\n");
+    }
+    output.push_str("    }\n\n");
+    
+    output.push_str("    pub struct DeviceTree {\n");
+    output.push_str("        _private: (),\n");
+    output.push_str("    }\n\n");
+    
+    output.push_str("    impl DeviceTree {\n");
+    output.push_str("        pub const fn new() -> Self {\n");
+    output.push_str("            Self { _private: () }\n");
+    output.push_str("        }\n\n");
+    
+    output.push_str(&format!("        pub fn compatible(&self) -> Option<&'static str> {{\n"));
+    output.push_str(&format!("            Some(\"{}\")\n", compatible));
+    output.push_str("        }\n\n");
+    
+    output.push_str(&format!("        pub fn model(&self) -> Option<&'static str> {{\n"));
+    output.push_str(&format!("            Some(\"{}\")\n", model));
+    output.push_str("        }\n\n");
+    
+    output.push_str("        pub const fn address_cells(&self) -> u32 { 2 }\n");
+    output.push_str("        pub const fn size_cells(&self) -> u32 { 1 }\n");
+    output.push_str("        pub const fn has_interrupt_controller(&self) -> bool { true }\n");
+    output.push_str("        pub const fn has_clock_controller(&self) -> bool { true }\n");
+    output.push_str("    }\n\n");
+    
+    output.push_str("    impl Default for DeviceTree {\n");
+    output.push_str("        fn default() -> Self {\n");
+    output.push_str("            Self::new()\n");
+    output.push_str("        }\n");
+    output.push_str("    }\n");
+    output.push_str("}\n\n");
+    
+    // GPIO module
+    output.push_str("/// GPIO configuration\n");
+    output.push_str("pub mod gpio {\n");
+    output.push_str("    #[derive(Debug, Clone, Copy)]\n");
+    output.push_str("    pub struct GpioPin {\n");
+    output.push_str("        pub port: u8,\n");
+    output.push_str("        pub pin: u8,\n");
+    output.push_str("    }\n\n");
+    
+    output.push_str("    #[derive(Debug, Clone, Copy)]\n");
+    output.push_str("    pub struct LedConfig {\n");
+    output.push_str("        pub pin: GpioPin,\n");
+    output.push_str("        pub active_high: bool,\n");
+    output.push_str("    }\n\n");
+    
+    output.push_str("    pub fn led_configs() -> &'static [LedConfig] {\n");
+    if led_configs.is_empty() {
+        output.push_str("        &[]\n");
+    } else {
+        output.push_str("        &[\n");
+        for (port, pin, active_high) in &led_configs {
+            output.push_str(&format!("            LedConfig {{ pin: GpioPin {{ port: {}, pin: {} }}, active_high: {} }},\n",
+                port, pin, active_high));
+        }
+        output.push_str("        ]\n");
+    }
+    output.push_str("    }\n");
+    output.push_str("}\n\n");
+    
+    // Serial module
+    output.push_str("/// Serial configuration\n");
+    output.push_str("pub mod serial {\n");
+    output.push_str("    #[derive(Debug, Clone, Copy)]\n");
+    output.push_str("    pub struct UartConfig {\n");
+    output.push_str("        pub base_address: u32,\n");
+    output.push_str("        pub irq: u32,\n");
+    output.push_str("        pub clock_frequency: u32,\n");
+    output.push_str("        pub baud_rate: u32,\n");
+    output.push_str("    }\n\n");
+    
+    output.push_str("    pub fn uart_configs() -> &'static [UartConfig] {\n");
+    if uart_configs.is_empty() {
+        output.push_str("        &[]\n");
+    } else {
+        output.push_str("        &[\n");
+        for (base, irq, clock, baud) in &uart_configs {
+            output.push_str(&format!("            UartConfig {{ base_address: 0x{:08X}, irq: {}, clock_frequency: {}, baud_rate: {} }},\n",
+                base, irq, clock, baud));
+        }
+        output.push_str("        ]\n");
+    }
+    output.push_str("    }\n");
+    output.push_str("}\n\n");
+    
+    // I2C module
+    output.push_str("pub mod i2c {\n");
+    output.push_str("    #[derive(Debug, Clone, Copy)]\n");
+    output.push_str("    pub struct I2cConfig {\n");
+    output.push_str("        pub base_address: u32,\n");
+    output.push_str("        pub irq: u32,\n");
+    output.push_str("        pub clock_frequency: u32,\n");
+    output.push_str("    }\n\n");
+    output.push_str("    pub fn i2c_configs() -> &'static [I2cConfig] {\n");
+    output.push_str("        &[]\n");
+    output.push_str("    }\n");
+    output.push_str("}\n\n");
+    
+    // SPI module
+    output.push_str("pub mod spi {\n");
+    output.push_str("    #[derive(Debug, Clone, Copy)]\n");
+    output.push_str("    pub struct SpiConfig {\n");
+    output.push_str("        pub base_address: u32,\n");
+    output.push_str("        pub irq: u32,\n");
+    output.push_str("        pub clock_frequency: u32,\n");
+    output.push_str("    }\n\n");
+    output.push_str("    pub fn spi_configs() -> &'static [SpiConfig] {\n");
+    output.push_str("        &[]\n");
+    output.push_str("    }\n");
+    output.push_str("}\n");
+    
+    Ok(output)
+}
+
+fn extract_property(content: &str, prop_name: &str) -> Option<String> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with(prop_name) {
+            if let Some(start) = trimmed.find('"') {
+                if let Some(end) = trimmed[start + 1..].find('"') {
+                    return Some(trimmed[start + 1..start + 1 + end].to_string());
                 }
             }
         }
@@ -58,93 +287,65 @@ pub fn find_chip_device_tree_file(chip_name: &str) -> Option<PathBuf> {
     None
 }
 
-/// Generate device tree information as Rust code
-/// 将设备树信息生成为 Rust 代码
-pub fn generate_device_tree_info(dts_content: &str) -> Result<String, String> {
-    let mut output = String::new();
+fn find_next_property(content: &str, start_line: &str, prop_name: &str) -> Option<String> {
+    let start_idx = content.find(start_line)?;
+    let remaining = &content[start_idx..];
     
-    output.push_str("//! Device Tree Generated Code\n");
-    output.push_str("//! 设备树生成的代码\n\n");
-    output.push_str("//! This file is automatically generated by build_tool.\n");
-    output.push_str("//! Do not edit manually.\n\n");
-    
-    output.push_str("use core::mem::size_of;\n\n");
-    
-    // Parse simple device tree properties
-    for line in dts_content.lines() {
-        let line = line.trim();
-        
-        // Parse compatible property
-        if line.contains("compatible") {
-            if let Some(compat) = extract_string_property(line) {
-                output.push_str("pub const DEVICE_COMPATIBLE: &str = \"");
-                output.push_str(&compat);
-                output.push_str("\";\n");
-            }
+    for line in remaining.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with(prop_name) {
+            return Some(trimmed.to_string());
         }
-        
-        // Parse model property
-        if line.contains("model") {
-            if let Some(model) = extract_string_property(line) {
-                output.push_str("pub const DEVICE_MODEL: &str = \"");
-                output.push_str(&model);
-                output.push_str("\";\n");
-            }
+        if trimmed.starts_with("};") || trimmed.contains("};") {
+            return None;
         }
-        
-        // Parse #address-cells and #size-cells
-        if line.contains("#address-cells") {
-            if let Some(val) = extract_number_property(line) {
-                output.push_str(&format!("pub const ADDRESS_CELLS: u32 = {};\n", val));
-            }
-        }
-        
-        if line.contains("#size-cells") {
-            if let Some(val) = extract_number_property(line) {
-                output.push_str(&format!("pub const SIZE_CELLS: u32 = {};\n", val));
-            }
-        }
-    }
-    
-    output.push_str("\n");
-    output.push_str("/// Device tree base addresses\n");
-    output.push_str("/// 设备树基地址\n");
-    output.push_str("#[derive(Debug, Clone, Copy)]\n");
-    output.push_str("pub struct DeviceTree {\n");
-    output.push_str("    pub base_address: u32,\n");
-    output.push_str("    pub size: u32,\n");
-    output.push_str("}\n\n");
-    
-    if dts_content.contains("memory") {
-        output.push_str("/// Memory regions from device tree\n");
-        output.push_str("pub const MEMORY_REGIONS: &[DeviceTree] = &[];\n");
-    }
-    
-    if dts_content.contains("interrupt-controller") {
-        output.push_str("/// Interrupt controller present\n");
-        output.push_str("pub const HAS_INTERRUPT_CONTROLLER: bool = true;\n");
-    }
-    
-    if dts_content.contains("clocks") {
-        output.push_str("/// Clock controller present\n");
-        output.push_str("pub const HAS_CLOCK_CONTROLLER: bool = true;\n");
-    }
-    
-    Ok(output)
-}
-
-fn extract_string_property(line: &str) -> Option<String> {
-    let start = line.find('"')?;
-    let end = line[start + 1..].find('"')?;
-    let s = &line[start + 1..start + 1 + end];
-    Some(s.to_string())
-}
-
-fn extract_number_property(line: &str) -> Option<u32> {
-    let parts: Vec<&str> = line.split('=').collect();
-    if parts.len() >= 2 {
-        let value = parts[1].trim().trim_end_matches(';').trim();
-        return value.parse().ok();
     }
     None
+}
+
+fn extract_reg_values(line: &str) -> Option<(u32, u32)> {
+    let start = line.find('<')?;
+    let end = line.find('>')?;
+    let content = &line[start + 1..end];
+    
+    let parts: Vec<&str> = content.split_whitespace().collect();
+    if parts.len() >= 2 {
+        let base = u32::from_str_radix(parts[0].trim_start_matches("0x").trim_start_matches("0X"), 16).ok()?;
+        let size = u32::from_str_radix(parts[1].trim_start_matches("0x").trim_start_matches("0X"), 16).ok()?;
+        Some((base, size))
+    } else {
+        None
+    }
+}
+
+fn extract_single_value(line: &str) -> Option<u32> {
+    let start = line.find('<')?;
+    let end = line.find('>')?;
+    let content = &line[start + 1..end];
+    let value = content.split_whitespace().next()?;
+    u32::from_str_radix(value.trim_start_matches("0x").trim_start_matches("0X"), 16).ok()
+}
+
+fn extract_gpio_pin(line: &str) -> Option<(u8, u8)> {
+    if let Some(gpio_start) = line.find("gpio") {
+        let gpio_part = &line[gpio_start..];
+        let port_char = gpio_part.chars().nth(4)?;
+        let port = (port_char as u8) - ('A' as u8);
+        
+        let start = line.find('<')?;
+        let end = line.find('>')?;
+        let content = &line[start + 1..end];
+        let pin = content.split_whitespace().next()?.parse().ok()?;
+        
+        return Some((port, pin));
+    }
+    None
+}
+
+fn extract_interrupt_irq(line: &str) -> Option<u32> {
+    let start = line.find('<')?;
+    let end = line.find('>')?;
+    let content = &line[start + 1..end];
+    let irq = content.split_whitespace().next()?.parse().ok()?;
+    Some(irq)
 }

@@ -10,12 +10,12 @@ name = "feathercore_common"
 path = "src/lib.rs"
 
 [dependencies]
-# Architecture dependencies (optional)
+# Sub-libraries (path dependencies)
 feathercore-arch-arm = { path = "./arch/arm", optional = true }
 feathercore-arch-riscv = { path = "./arch/riscv", optional = true }
-
-# Driver sub-library (optional)
 feathercore-driver = { path = "./driver", optional = true }
+feathercore-generated = { path = "./generated", optional = true }
+feathercore-platform = { path = "./platform", optional = true }
 
 [features]
 default = []
@@ -34,15 +34,12 @@ armv7-a = ["arm", "feathercore-arch-arm/armv7-a"]
 armv8-a = ["arm", "feathercore-arch-arm/armv8-a"]
 armv9-a = ["arm", "feathercore-arch-arm/armv9-a"]
 
-# Optional features
-async = []      # Enable async runtime
-mm = []         # Enable memory management
-sync = []       # Enable synchronization primitives
-driver = ["feathercore-driver"]  # Enable driver framework
-fs = []         # Enable filesystem framework
-devicetree = [] # Enable device tree support
+# Sub-library features
+driver = ["feathercore-driver"]
+devicetree = ["feathercore-generated"]
+platform = ["feathercore-platform"]
 
-# Driver sub-library features (passed through)
+# Driver sub-library features
 driver_gpio = ["feathercore-driver/driver_gpio"]
 driver_i2c = ["feathercore-driver/driver_i2c"]
 driver_spi = ["feathercore-driver/driver_spi"]

@@ -91,12 +91,12 @@ pub fn generate_config(board_name: &str) {
     let root_path = PathBuf::from(&root);
     fs::create_dir_all(root_path.join("boot")).unwrap_or_default();
     fs::create_dir_all(root_path.join("kernel")).unwrap_or_default();
-    fs::create_dir_all(root_path.join("common/src/generated")).unwrap_or_default();
+    fs::create_dir_all(root_path.join("common/generated/src")).unwrap_or_default();
     
     // Generate linker scripts
     let boot_link_path = root_path.join("boot/link.x");
     let kernel_link_path = root_path.join("kernel/link.x");
-    let common_dt_path = root_path.join("common/src/generated/devicetree.rs");
+    let common_dt_path = root_path.join("common/generated/src/devicetree.rs");
     
     let boot_script = linker::generate_boot_linker_script(&board_config);
     let kernel_script = linker::generate_kernel_linker_script(&board_config);

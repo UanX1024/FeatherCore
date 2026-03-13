@@ -1,0 +1,6 @@
+//! Platform-specific clock system implementations
+//! 平台专属时钟系统实现
+
+pub mod stm32f4;
+pub mod esp32;
+pub mod rp2040;

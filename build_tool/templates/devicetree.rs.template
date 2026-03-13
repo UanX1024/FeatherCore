@@ -1,0 +1,30 @@
+//! Device Tree Template
+//! 设备树模板
+//!
+//! This template is used by build_tool to generate device tree code.
+//! 此模板由 build_tool 用于生成设备树代码。
+
+use core::mem::size_of;
+
+{{#each nodes}}
+/// {{ this.name }} node
+/// {{ this.name }} 节点
+pub mod {{ this.name }} {
+    {{#each this.properties}}
+    /// {{ this.description }}
+    pub const {{ this.name_upper }}: {{ this.rust_type }} = {{ this.value }};
+    {{/each}}
+}
+{{/each}}
+
+/// Device tree root
+/// 设备树根
+pub mod root {
+    /// Compatible string
+    /// 兼容字符串
+    pub const DEVICE_COMPATIBLE: &str = "{{ compatible }}";
+
+    /// Device tree version
+    /// 设备树版本
+    pub const DEVICE_TREE_VERSION: u32 = {{ version }};
+}

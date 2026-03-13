@@ -49,12 +49,13 @@ pub unsafe fn jump_to_kernel(vector_table_addr: usize) -> ! {
     // Read reset handler address from vector table (second entry)
     // 从向量表中读取复位处理程序地址（第二个条目）
     let vector_table = vector_table_addr as *const usize;
-    let reset_handler_addr = *vector_table.add(1); // Offset by one pointer size
+    let reset_handler_addr = core::ptr::read_volatile(vector_table.add(1));
     
     // Convert address to function pointer using correct type for target
     // 使用目标正确的类型将地址转换为函数指针
-    type KernelFn = extern "C" fn() -> !;
-    let kernel_entry: KernelFn = core::mem::transmute(reset_handler_addr);
+    // Use union for safe conversion / 使用 union 进行安全转换
+    let addr_usize: usize = reset_handler_addr;
+    let kernel_entry = addr_to_fn(addr_usize);
     
     // Disable interrupts
     // 禁用中断
@@ -65,24 +66,34 @@ pub unsafe fn jump_to_kernel(vector_table_addr: usize) -> ! {
     kernel_entry();
 }
 
+#[allow(transmute_ptr_to_ptr)]
+unsafe fn addr_to_fn(addr: usize) -> extern "C" fn() -> ! {
+    core::mem::transmute(addr)
+}
+
 /// RISC-V startup code
 /// RISC-V 启动代码
 pub mod startup {
-    /// Interrupt vector table for RISC-V
-    /// RISC-V 的中断向量表
-    #[link_section = ".vector_table"]
-    #[used]
-    pub static VECTOR_TABLE: [usize; 32] = [
-        0,                  // Stack top
-        reset_handler as usize, // Reset
-        default_handler as usize, // Machine software interrupt
-        default_handler as usize, // Machine timer interrupt
-        default_handler as usize, // Machine external interrupt
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // Reserved (27 entries to make 32 total)
-    ];
+    use core::arch::global_asm;
     
-    /// Reset handler - entry point for RISC-V
-    /// 复位处理程序 - RISC-V 的入口点
+    global_asm!(
+        r#"
+        .section .vector_table, "aw"
+        .globl vector_table
+        vector_table:
+            .quad _stack_top
+            .quad reset_handler
+            .quad default_handler
+            .quad default_handler
+            .quad default_handler
+        "#
+    );
+    
+    #[no_mangle]
+    extern "C" fn default_handler() -> ! {
+        loop {}
+    }
+    
     #[no_mangle]
     pub unsafe extern "C" fn reset_handler() -> ! {
         // Set stack pointer to the top of stack
@@ -90,7 +101,7 @@ pub mod startup {
         extern "C" {
             static _stack_top: u32;
         }
-        let stack_top = &_stack_top as *const u32 as usize;
+        let stack_top = core::ptr::addr_of!(_stack_top) as usize;
         core::arch::asm!("mv sp, {0}", in(reg) stack_top);
         
         // Initialize .data section
@@ -111,13 +122,6 @@ pub mod startup {
             fn boot_main() -> !;
         }
         boot_main();
-    }
-    
-    /// Default interrupt handler
-    /// 默认中断处理程序
-    #[no_mangle]
-    pub unsafe extern "C" fn default_handler() -> ! {
-        loop {}
     }
     
     /// Initialize .data section

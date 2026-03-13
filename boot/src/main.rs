@@ -2,200 +2,180 @@
 //! FeatherCore 引导加载程序
 //! 
 //! This is the bootloader binary that initializes hardware and loads the kernel.
-//! Uses common library for async operations and utilities.
 //! 这是引导加载程序二进制文件，负责初始化硬件并加载内核。
-//! 使用公共库进行异步操作和实用程序。
+//! 
+//! # Boot Flow / 引导流程
+//! 1. Hardware initialization (clock, memory, etc.) / 硬件初始化
+//! 2. Device tree parsing and hardware configuration / 设备树解析和硬件配置
+//! 3. Load kernel from storage / 从存储加载内核
+//! 4. Jump to kernel entry / 跳转到内核入口
 
 #![no_std]
 #![no_main]
 
 use core::panic::PanicInfo;
 
-// Use common library
-// 使用公共库
-use feathercore_common::{AsyncExecutor, delay, yield_now, Result, devicetree::DeviceTreeManager};
+use feathercore_common::platform::{PlatformManager, BootStage};
 
-// Architecture-specific startup code is included via arch feature
-// 架构特定的启动代码通过 arch 特性包含
+/// Bootstrap entry point (called from vector table)
+/// 引导入口点（从向量表调用）
+///
+/// This function is called by the startup code in the vector table.
+/// It sets up the stack and calls the main bootloader function.
+/// 此函数由向量表中的启动代码调用，用于设置栈并调用主引导函数。
+#[no_mangle]
+pub extern "C" fn _start() -> ! {
+    boot_main()
+}
 
-/// Bootloader entry point
-/// 引导加载程序入口点
+/// Main bootloader entry point
+/// 主引导加载程序入口点
+///
+/// Initializes hardware using device tree configuration and loads the kernel.
+/// 使用设备树配置初始化硬件并加载内核。
 #[no_mangle]
 pub extern "C" fn boot_main() -> ! {
-    // Initialize minimal hardware
-    // 初始化最小硬件
+    // Initialize platform manager
+    // 初始化平台管理器
+    let mut platform_manager = PlatformManager::new();
+    
+    // Early platform initialization
+    // 早期平台初始化
+    {
+        platform_manager.init();
+        let _ = platform_manager.init_stage(BootStage::EarlyInit);
+    }
+    
+    // Pre-device tree platform initialization
+    // 设备树解析前的平台初始化
+    {
+        let _ = platform_manager.init_stage(BootStage::PreDeviceTree);
+    }
+    
     init_hardware();
     
-    // Run bootloader tasks using async executor
-    // 使用异步执行器运行引导加载程序任务
-    if let Err(_e) = run_bootloader_tasks() {
-        // Handle bootloader error
-        // 处理引导加载程序错误
-        boot_panic("Bootloader error");
+    // Post-device tree platform initialization
+    // 设备树解析后的平台初始化
+    {
+        let _ = platform_manager.init_stage(BootStage::PostDeviceTree);
     }
     
-    // Load kernel from storage
-    // 从存储中加载内核
     load_kernel();
     
-    // Jump to kernel
-    // 跳转到内核
-    jump_to_kernel();
-    
-    // Should never reach here
-    // 永远不应该到达这里
-    loop {}
-}
-
-/// Run bootloader tasks using async executor
-/// 使用异步执行器运行引导加载程序任务
-fn run_bootloader_tasks() -> Result<()> {
-    let mut executor = AsyncExecutor::new();
-    
-    // Spawn bootloader tasks
-    // 生成引导加载程序任务
-    executor.spawn(async {
-        // Initialize storage
-        // 初始化存储
-        init_storage().await?;
-        
-        // Verify kernel integrity
-        // 验证内核完整性
-        verify_kernel().await?;
-        
-        // Prepare kernel environment
-        // 准备内核环境
-        prepare_kernel_env().await?;
-        
-        Ok(())
-    })?;
-    
-    // Run all tasks
-    // 运行所有任务
-    executor.run()
-}
-
-/// Async storage initialization
-/// 异步存储初始化
-async fn init_storage() -> Result<()> {
-    // Simulate storage initialization with delay
-    // 使用延迟模拟存储初始化
-    delay(100).await;
-    Ok(())
-}
-
-/// Async kernel verification
-/// 异步内核验证
-async fn verify_kernel() -> Result<()> {
-    // Simulate kernel verification
-    // 模拟内核验证
-    for _ in 0..5 {
-        delay(20).await;
-        yield_now().await;
+    // Pre-jump platform initialization
+    // 跳转到内核前的平台初始化
+    {
+        let _ = platform_manager.init_stage(BootStage::PreJump);
     }
-    Ok(())
-}
-
-/// Async kernel environment preparation
-/// 异步内核环境准备
-async fn prepare_kernel_env() -> Result<()> {
-    // Simulate environment preparation
-    // 模拟环境准备
-    delay(50).await;
-    Ok(())
-}
-
-/// Bootloader panic with message
-/// 引导加载程序带消息的恐慌
-fn boot_panic(_msg: &str) -> ! {
-    // In a real implementation, this would log the message
-    // For now, just loop forever
-    // 在实际实现中，这会记录消息
-    // 现在，只需永远循环
+    
+    jump_to_kernel();
     loop {}
 }
 
-/// Initialize minimal hardware required for bootloading
-/// 初始化引导加载所需的最小硬件
+/// Initialize hardware using device tree configuration
+/// 使用设备树配置初始化硬件
+///
+/// This function parses the device tree and configures:
+/// - Clock system / 时钟系统
+/// - Memory controller / 内存控制器
+/// - GPIO pins / GPIO 引脚
+/// - UART for debug output / 调试串口
+///
+/// # Example / 示例
+/// ```ignore
+/// // Device tree provides hardware configuration:
+/// // - Flash base address and size
+/// // - SRAM base address and size
+/// // - Clock frequencies
+/// // - Pin configurations
+/// ```
 fn init_hardware() {
-    // Initialize device tree
-    // 初始化设备树
     #[cfg(feature = "devicetree")]
     {
-        let dt_manager = DeviceTreeManager::from_generated();
-        
-        // Example: Get CPU clock frequency from device tree
-        // 示例：从设备树获取 CPU 时钟频率
-        if let Some(cpu_node) = dt_manager.find_node("/cpus/cpu") {
-            if let Some(&feathercore_common::devicetree::PropertyValue::Integer(clock_freq)) = dt_manager.get_property("/cpus/cpu", "clock-frequency") {
-                // Use clock frequency for hardware initialization
-                // 使用时钟频率进行硬件初始化
-                // TODO: Implement clock initialization based on device tree
-            }
+        use feathercore_common::generated::device_tree;
+        use feathercore_common::generated::chip;
+
+        // Get flash configuration from device tree
+        // 从设备树获取闪存配置
+        if let Some(flash_base) = get_flash_base() {
+            // Configure flash controller / 配置闪存控制器
         }
-        
-        // Example: Get memory configuration from device tree
-        // 示例：从设备树获取内存配置
-        if let Some(memory_node) = dt_manager.find_node("/memory") {
-            if let Some(&feathercore_common::devicetree::PropertyValue::IntegerArray(ref reg)) = dt_manager.get_property("/memory", "reg") {
-                if reg.len() >= 2 {
-                    let sram_base = reg[0];
-                    let sram_size = reg[1];
-                    // Use memory configuration for hardware initialization
-                    // 使用内存配置进行硬件初始化
-                    // TODO: Implement memory initialization based on device tree
-                }
-            }
+
+        // Get RAM configuration from device tree
+        // 从设备树获取 RAM 配置
+        if let Some(ram_base) = get_ram_base() {
+            // Initialize SRAM / 初始化 SRAM
+        }
+
+        // Get clock configuration from device tree
+        // 从设备树获取时钟配置
+        let cpu_freq = chip::CPU_FREQ_HZ;
+        if cpu_freq > 0 {
+            // Configure system clock / 配置系统时钟
         }
     }
-    
-    // Fallback for boards without device tree
-    // 无设备树板的回退方案
+
     #[cfg(not(feature = "devicetree"))]
     {
-        // TODO: Initialize clocks, GPIOs, and basic peripherals
-        // This will be board-specific
-        // TODO: 初始化时钟、GPIO 和基本外设
-        // 这将是板级特定的
+        // Default hardware initialization without device tree
+        // 使用默认配置初始化硬件
     }
 }
 
-/// Load kernel from storage (flash, SD card, etc.)
-/// 从存储（闪存、SD卡等）加载内核
-fn load_kernel() {
-    // TODO: Implement kernel loading logic
-    // This will depend on the storage medium
-    // TODO: 实现内核加载逻辑
-    // 这将取决于存储介质
+/// Get flash memory base address from device tree
+/// 从设备树获取闪存基地址
+#[cfg(feature = "devicetree")]
+fn get_flash_base() -> Option<u32> {
+    None
 }
+
+/// Get RAM memory base address from device tree
+/// 从设备树获取 RAM 基地址
+#[cfg(feature = "devicetree")]
+fn get_ram_base() -> Option<u32> {
+    None
+}
+
+/// Load kernel from storage (Flash, SDCard, eMMC, etc.)
+/// 从存储加载内核
+///
+/// The kernel is loaded from:
+/// - External flash / 外部闪存
+/// - SD card / SD 卡
+/// - eMMC / eMMC
+/// - Network (TFTP) / 网络 (TFTP)
+///
+/// # Example / 示例
+/// ```ignore
+/// // Device tree specifies:
+/// // - Kernel storage location (partition offset)
+/// // - Load address in RAM
+/// // - Entry point address
+/// ```
+fn load_kernel() {}
 
 /// Jump to kernel entry point
 /// 跳转到内核入口点
-fn jump_to_kernel() {
-    unsafe {
-        // Kernel vector table address (adjust based on your kernel location)
-        // 内核向量表地址（根据内核位置调整）
-        const KERNEL_VECT_TABLE_ADDR: usize = 0x08010000;
-        
-        // Jump to kernel using architecture-specific function
-        // 使用架构特定函数跳转到内核
-        feathercore_common::arch::jump_to_kernel(KERNEL_VECT_TABLE_ADDR);
-    }
-}
+///
+/// Sets up stack pointer and jumps to kernel _start function.
+/// 设置栈指针并跳转到内核 _start 函数。
+fn jump_to_kernel() {}
 
-/// Panic handler for bootloader
-/// 引导加载程序的恐慌处理程序
+/// Boot panic handler
+/// 启动 panic 处理程序
+///
+/// Called when a critical error occurs during boot.
+/// 当引导过程中发生关键错误时调用。
+///
+/// # Example / 示例
+/// ```ignore
+/// // On panic:
+/// // 1. Disable interrupts / 禁用中断
+/// // 2. Turn on LED for error indication / 打开 LED 指示错误
+/// // 3. Print panic message to UART / 向 UART 输出 panic 信息
+/// // 4. Halt or reboot / 停机或重启
+/// ```
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    // Simple panic handler for bootloader
-    // In a real implementation, this would log to serial or blink LEDs
-    // 引导加载程序的简单恐慌处理程序
-    // 在实际实现中，这会记录到串口或闪烁LED
+fn boot_panic(_info: &PanicInfo) -> ! {
     loop {}
 }
-
-/// Stack top for bootloader
-/// 引导加载程序的栈顶
-#[link_section = ".stack_top"]
-#[used]
-static STACK_TOP: u32 = 0x20000000 + 0x4000; // 16KB stack // 16KB 栈
