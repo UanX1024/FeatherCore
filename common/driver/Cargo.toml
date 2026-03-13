@@ -1,0 +1,31 @@
+[package]
+name = "feathercore-driver"
+version = "0.1.0"
+edition = "2021"
+authors = ["FeatherCore Contributors"]
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "feathercore_driver"
+path = "src/lib.rs"
+
+[dependencies]
+
+[features]
+default = []
+
+# Driver features
+driver_gpio = []
+driver_i2c = []
+driver_spi = []
+driver_serial = []
+driver_i2s = []
+driver_timer = []
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

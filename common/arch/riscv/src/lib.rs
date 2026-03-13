@@ -48,12 +48,13 @@ pub unsafe fn switch_context(_from: &TaskContext, _to: &TaskContext) {
 pub unsafe fn jump_to_kernel(vector_table_addr: usize) -> ! {
     // Read reset handler address from vector table (second entry)
     // 从向量表中读取复位处理程序地址（第二个条目）
-    let vector_table = vector_table_addr as *const u32;
-    let reset_handler_addr = *vector_table.add(1); // Offset 4 bytes
+    let vector_table = vector_table_addr as *const usize;
+    let reset_handler_addr = *vector_table.add(1); // Offset by one pointer size
     
-    // Convert to function pointer
-    // 转换为函数指针
-    let kernel_entry: unsafe extern "C" fn() -> ! = core::mem::transmute(reset_handler_addr);
+    // Convert address to function pointer using correct type for target
+    // 使用目标正确的类型将地址转换为函数指针
+    type KernelFn = extern "C" fn() -> !;
+    let kernel_entry: KernelFn = core::mem::transmute(reset_handler_addr);
     
     // Disable interrupts
     // 禁用中断

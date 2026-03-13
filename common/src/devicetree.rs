@@ -63,7 +63,8 @@ pub struct DeviceTreeParser;
 impl DeviceTreeParser {
     /// Parse device tree from JSON
     /// 从 JSON 解析设备树
-    pub fn from_json(json: &str) -> Result<DeviceTreeNode, String> {
+    #[allow(dead_code)]
+    pub fn from_json(_json: &str) -> Result<DeviceTreeNode, String> {
         // TODO: Implement JSON parsing
         // TODO: 实现 JSON 解析
         Err("JSON parsing not implemented".to_string())
@@ -103,7 +104,7 @@ impl DeviceTreeParser {
         }
         
         // 解析子节点和属性
-        let mut current_node = &mut root;
+        let current_node = &mut root;
         
         // 这里使用一个简单的状态机来跟踪解析状态
         // 0: 寻找节点或属性

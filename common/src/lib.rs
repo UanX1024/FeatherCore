@@ -49,8 +49,10 @@ pub mod mm;
 #[cfg(feature = "sync")]
 pub mod sync;
 
+// Re-export driver sub-library if feature is enabled
+// 如果启用了特性，则重新导出驱动子库
 #[cfg(feature = "driver")]
-pub mod driver;
+pub use feathercore_driver as driver;
 
 #[cfg(feature = "fs")]
 pub mod fs;

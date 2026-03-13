@@ -5,7 +5,6 @@ edition = "2021"
 authors = ["FeatherCore Contributors"]
 license = "MIT OR Apache-2.0"
 
-# This is a no_std library
 [lib]
 name = "feathercore_common"
 path = "src/lib.rs"
@@ -14,6 +13,9 @@ path = "src/lib.rs"
 # Architecture dependencies (optional)
 feathercore-arch-arm = { path = "./arch/arm", optional = true }
 feathercore-arch-riscv = { path = "./arch/riscv", optional = true }
+
+# Driver sub-library (optional)
+feathercore-driver = { path = "./driver", optional = true }
 
 [features]
 default = []
@@ -36,17 +38,17 @@ armv9-a = ["arm", "feathercore-arch-arm/armv9-a"]
 async = []      # Enable async runtime
 mm = []         # Enable memory management
 sync = []       # Enable synchronization primitives
-driver = []     # Enable driver framework
+driver = ["feathercore-driver"]  # Enable driver framework
 fs = []         # Enable filesystem framework
 devicetree = [] # Enable device tree support
 
-# Driver features
-driver_gpio = ["driver"]   # GPIO driver
-driver_i2c = ["driver"]     # I2C driver
-driver_spi = ["driver"]     # SPI driver
-driver_serial = ["driver"]  # Serial/UART driver
-driver_i2s = ["driver"]    # I2S driver
-driver_timer = ["driver"]   # Timer/Counter driver
+# Driver sub-library features (passed through)
+driver_gpio = ["feathercore-driver/driver_gpio"]
+driver_i2c = ["feathercore-driver/driver_i2c"]
+driver_spi = ["feathercore-driver/driver_spi"]
+driver_serial = ["feathercore-driver/driver_serial"]
+driver_i2s = ["feathercore-driver/driver_i2s"]
+driver_timer = ["feathercore-driver/driver_timer"]
 
 [profile.dev]
 opt-level = 1
